@@ -1,0 +1,34 @@
+# Datasets and generated image folders
+CUB_200_2011/
+CUB_200_2011_cropped_square/
+CUB_200_2011.tgz
+project/CUB_200_2011/
+project/CUB_200_2011_cropped_square/
+
+# Model checkpoints and trained weights
+*.pt
+*.pth
+*.ckpt
+fc_checkpoints/
+project/fc_checkpoints/
+ViT_RA_model_checkpts/
+project/ViT_RA_model_checkpts/
+ra_vit_last_epoch.pt
+project/ra_vit_last_epoch.pt
+
+# Python and notebook caches
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+project/__pycache__/
+project/.ipynb_checkpoints/
+
+# Notebooks and course/report artifacts
+*.ipynb
+latex documents for course/
+
+# OS/editor clutter
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
