@@ -1,4 +1,5 @@
 import math
+import time
 
 import torch
 import torch.nn.functional as F
@@ -13,13 +14,14 @@ VIT_B16_FEATURE_DIM = 768
 VIT_B16_IMAGE_SIZE = 224
 VIT_B16_PATCH_SIZE = 16
 VIT_B16_PATCH_GRID = VIT_B16_IMAGE_SIZE // VIT_B16_PATCH_SIZE
-LOCAL_CROP_SIZE = 96
+LOCAL_CROP_SIZE = 7 * VIT_B16_PATCH_SIZE
 DEFAULT_RA_VIT_CHECKPOINT_PATH = "ra_vit_last_epoch.pt"
 
 
 def build_fc_classifier(num_classes=NUM_BIRD_CLASSES, fc1_dim=512, dropout=0.3):
     return nn.Sequential(
         nn.Linear(VIT_B16_FEATURE_DIM, fc1_dim),
+        nn.BatchNorm1d(fc1_dim),
         nn.ReLU(),
         nn.Dropout(dropout),
         nn.Linear(fc1_dim, NUM_BIRD_CLASSES),
@@ -90,7 +92,7 @@ def extract_attention_map(vit_backbone, images, layer_index=-1, average_heads=Tr
 
 def crop_attention_zoom(images, attention_maps, crop_size=LOCAL_CROP_SIZE, output_size=VIT_B16_IMAGE_SIZE):
     """
-    Crop a square around the most-attended patch for each image and resize to output_size.
+    Crop a 7-patch by 7-patch square around the highest-attention 3x3 patch area.
 
     images should have shape [batch_size, 3, 224, 224].
     attention_maps should have shape [batch_size, 14, 14].
@@ -105,9 +107,16 @@ def crop_attention_zoom(images, attention_maps, crop_size=LOCAL_CROP_SIZE, outpu
     local_crops = []
 
     for image_index in range(batch_size):
-        flat_index = attention_maps[image_index].argmax().item()
-        patch_row = flat_index // attention_maps.shape[-1]
-        patch_col = flat_index % attention_maps.shape[-1]
+        attention_map = attention_maps[image_index]
+        window_scores = F.conv2d(
+            attention_map.unsqueeze(0).unsqueeze(0),
+            torch.ones(1, 1, 3, 3, device=attention_map.device, dtype=attention_map.dtype),
+        ).squeeze(0).squeeze(0)
+        flat_index = window_scores.argmax().item()
+        window_top = flat_index // window_scores.shape[-1]
+        window_left = flat_index % window_scores.shape[-1]
+        patch_row = window_top + 1
+        patch_col = window_left + 1
 
         center_y = math.floor((patch_row + 0.5) * patch_size)
         center_x = math.floor((patch_col + 0.5) * patch_size)
@@ -137,7 +146,7 @@ class RA_ViT(nn.Module):
     Recurrent-attention style ViT with global and local classification streams.
 
     The global stream classifies the full image. The local stream uses the global
-    stream attention map to crop a 96x96 region, resizes it to 224x224, and
+    stream attention map to crop a 7x7 patch region, resizes it to 224x224, and
     classifies that zoomed crop with a second ViT-B/16 backbone.
     """
 
@@ -263,7 +272,7 @@ def train_ra_vit(
     optimizer = torch.optim.Adam(
         filter(lambda parameter: parameter.requires_grad, model.parameters()),
         lr=learning_rate,
-        weight_decay=0.0,
+        weight_decay=0.0001,
     )
 
     history = {
@@ -274,6 +283,8 @@ def train_ra_vit(
         "val_global_accuracy": [],
         "val_local_accuracy": [],
     }
+
+    start_time = time.perf_counter()
 
     for epoch in range(1, num_epochs + 1):
         #here!
@@ -313,6 +324,9 @@ def train_ra_vit(
             f"val total acc: {val_total_acc:.4f}"
         )
 
+    elapsed_time = time.perf_counter() - start_time
+    print(f"Training completed in {elapsed_time:.2f} seconds ({elapsed_time / 60:.2f} minutes)")
+
     if checkpoint_path is not None:
         torch.save(model.state_dict(), checkpoint_path)
         print(f"Saved RA_ViT parameters from last epoch to {checkpoint_path}")
@@ -322,7 +336,7 @@ def train_ra_vit(
 
 if __name__ == "__main__":
     batch_size = 32
-    num_epochs = 5
+    num_epochs = 10
     learning_rate = 0.001
     fc1_dim = 512
     dropout = 0.3

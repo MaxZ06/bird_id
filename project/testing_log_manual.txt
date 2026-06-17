@@ -1,0 +1,119 @@
+mini batched descent: 32 + 0.001
+
+Epoch 1/5 | train loss: 5.2129, train accuracy: 0.0260, val loss: 5.0776, val accuracy: 0.0929
+Epoch 2/5 | train loss: 4.9237, train accuracy: 0.1179, val loss: 4.7235, val accuracy: 0.2127
+Epoch 3/5 | train loss: 4.4898, train accuracy: 0.2037, val loss: 4.2099, val accuracy: 0.3129
+Epoch 4/5 | train loss: 3.9474, train accuracy: 0.2690, val loss: 3.6478, val accuracy: 0.3832
+Epoch 5/5 | train loss: 3.4161, train accuracy: 0.3293, val loss: 3.1554, val accuracy: 0.4474
+
+mini batch 512 + 0.01
+PS C:\Users\zhong\OneDrive\Desktop\codex testing\aps360_bird_id\project> & C:/Users/zhong/miniconda3/envs/aps360_bird_id/python.exe "c:/Users/zhong/OneDrive/Desktop/codex testing/aps360_bird_id/project/training.py"
+Epoch 1/5 | train loss: 5.2858, train accuracy: 0.0091, val loss: 5.2245, val accuracy: 0.0248
+Epoch 2/5 | train loss: 5.1648, train accuracy: 0.0478, val loss: 5.0851, val accuracy: 0.1058
+Epoch 3/5 | train loss: 5.0083, train accuracy: 0.1080, val loss: 4.9050, val accuracy: 0.1598
+Epoch 4/5 | train loss: 4.7966, train accuracy: 0.1565, val loss: 4.6638, val accuracy: 0.2003
+Epoch 5/5 | train loss: 4.5241, train accuracy: 0.1877, val loss: 4.3549, val accuracy: 0.2572
+
+ADAM no weight decay
+PS C:\Users\zhong\OneDrive\Desktop\codex testing\aps360_bird_id\project> & C:/Users/zhong/miniconda3/envs/aps360_bird_id/python.exe "c:/Users/zhong/OneDrive/Desktop/codex testing/aps360_bird_id/project/training.py"
+Epoch 1/5 | train loss: 2.6038, train accuracy: 0.3713, val loss: 1.3589, val accuracy: 0.6173
+Epoch 2/5 | train loss: 1.1012, train accuracy: 0.6769, val loss: 1.0121, val accuracy: 0.7085
+Epoch 3/5 | train loss: 0.7385, train accuracy: 0.7785, val loss: 0.9073, val accuracy: 0.7490
+Epoch 4/5 | train loss: 0.5460, train accuracy: 0.8361, val loss: 0.8644, val accuracy: 0.7434
+Epoch 5/5 | train loss: 0.4227, train accuracy: 0.8735, val loss: 0.8389, val accuracy: 0.7608
+
+ADAM weight decay
+PS C:\Users\zhong\OneDrive\Desktop\codex testing\aps360_bird_id\project> & C:/Users/zhong/miniconda3/envs/aps360_bird_id/python.exe "c:/Users/zhong/OneDrive/Desktop/codex testing/aps360_bird_id/project/training.py"
+Epoch 1/5 | train loss: 2.6056, train accuracy: 0.3711, val loss: 1.3595, val accuracy: 0.6151
+Epoch 2/5 | train loss: 1.1046, train accuracy: 0.6744, val loss: 1.0229, val accuracy: 0.7169
+Epoch 3/5 | train loss: 0.7349, train accuracy: 0.7858, val loss: 0.9398, val accuracy: 0.7209
+Epoch 4/5 | train loss: 0.5537, train accuracy: 0.8362, val loss: 0.8619, val accuracy: 0.7473
+Epoch 5/5 | train loss: 0.4447, train accuracy: 0.8681, val loss: 0.8217, val accuracy: 0.7670
+
+
+d2: RA_ViT with 1 hidden layer: (BS = 8)
+PS C:\Users\zhong\OneDrive\Desktop\codex testing\aps360_bird_id\project> & C:/Users/zhong/miniconda3/envs/aps360_bird_id/python.exe "c:/Users/zhong/OneDrive/Desktop/codex testing/aps360_bird_id/project/RA_ViT_model.py"
+Epoch 1/5 | train loss: 6.3682, train global acc: 0.3912, train local acc: 0.1323, val loss: 4.6248, val global acc: 0.6072, val local acc: 0.2319
+Epoch 2/5 | train loss: 3.8033, train global acc: 0.6783, train local acc: 0.3299, val loss: 4.3166, val global acc: 0.6730, val local acc: 0.2690
+Epoch 3/5 | train loss: 2.8745, train global acc: 0.7650, train local acc: 0.4463, val loss: 4.2692, val global acc: 0.7006, val local acc: 0.2971
+Epoch 4/5 | train loss: 2.2568, train global acc: 0.8187, train local acc: 0.5501, val loss: 4.2998, val global acc: 0.7209, val local acc: 0.3028
+Epoch 5/5 | train loss: 1.8280, train global acc: 0.8496, train local acc: 0.6247, val loss: 4.5060, val global acc: 0.7259, val local acc: 0.3073
+
+
+RA_ViT with 2 hidden layer:
+PS C:\Users\zhong\OneDrive\Desktop\codex testing\aps360_bird_id\project> & C:/Users/zhong/miniconda3/envs/aps360_bird_id/python.exe "c:/Users/zhong/OneDrive/Desktop/codex testing/aps360_bird_id/project/RA_ViT_model.py"
+Epoch 1/5 | train loss: 7.5171, train global acc: 0.2367, train local acc: 0.0739, val loss: 5.4743, val global acc: 0.4800, val local acc: 0.1480
+Epoch 2/5 | train loss: 5.1144, train global acc: 0.4996, train local acc: 0.1826, val loss: 4.7030, val global acc: 0.6044, val local acc: 0.2240
+Epoch 3/5 | train loss: 4.2815, train global acc: 0.6117, train local acc: 0.2536, val loss: 4.5075, val global acc: 0.6252, val local acc: 0.2330
+Epoch 4/5 | train loss: 3.7842, train global acc: 0.6673, train local acc: 0.3130, val loss: 4.3406, val global acc: 0.6640, val local acc: 0.2442
+Epoch 5/5 | train loss: 3.3824, train global acc: 0.7176, train local acc: 0.3746, val loss: 4.2196, val global acc: 0.6888, val local acc: 0.2555
+
+
+RA_ViT with 1 layer, BS = 32:
+PS C:\Users\zhong\OneDrive\Desktop\codex testing\aps360_bird_id\project> & C:/Users/zhong/miniconda3/envs/aps360_bird_id/python.exe "c:/Users/zhong/OneDrive/Desktop/codex testing/aps360_bird_id/project/RA_ViT_model.py"
+Epoch 1/5 | train loss: 6.6366, train global acc: 0.3546, train local acc: 0.1369, val loss: 4.6782, val global acc: 0.5898, val local acc: 0.2420
+Epoch 2/5 | train loss: 3.7346, train global acc: 0.6766, train local acc: 0.3467, val loss: 4.0397, val global acc: 0.6843, val local acc: 0.2915
+Epoch 3/5 | train loss: 2.7844, train global acc: 0.7838, train local acc: 0.4663, val loss: 3.8720, val global acc: 0.7192, val local acc: 0.3095
+Epoch 4/5 | train loss: 2.1829, train global acc: 0.8383, train local acc: 0.5677, val loss: 3.8315, val global acc: 0.7338, val local acc: 0.3225
+Epoch 5/5 | train loss: 1.7204, train global acc: 0.8789, train local acc: 0.6528, val loss: 3.8231, val global acc: 0.7406, val local acc: 0.3388
+
+
+RA_ViT with 1 layer, BS = 32 with a total sum:
+PS C:\Users\zhong\OneDrive\Desktop\codex testing\aps360_bird_id\project> & C:/Users/zhong/miniconda3/envs/aps360_bird_id/python.exe "c:/Users/zhong/OneDrive/Desktop/codex testing/aps360_bird_id/project/RA_ViT_model.py"
+Epoch 1/5 | train loss: 6.6274, train global acc: 0.3565, train local acc: 0.1361, train total acca: 0.3297, val loss: 4.6355, val global acc: 0.6016, val local acc: 0.2425, val total acc: 0.5678
+Epoch 2/5 | train loss: 3.7274, train global acc: 0.6810, train local acc: 0.3480, train total acca: 0.6902, val loss: 4.0404, val global acc: 0.6905, val local acc: 0.2960, val total acc: 0.6584
+Epoch 3/5 | train loss: 2.8065, train global acc: 0.7886, train local acc: 0.4654, train total acca: 0.8108, val loss: 3.9144, val global acc: 0.7203, val local acc: 0.3112, val total acc: 0.6742
+Epoch 4/5 | train loss: 2.1870, train global acc: 0.8376, train local acc: 0.5756, train total acca: 0.8817, val loss: 3.8233, val global acc: 0.7423, val local acc: 0.3146, val total acc: 0.7017
+Epoch 5/5 | train loss: 1.7090, train global acc: 0.8759, train local acc: 0.6571, train total acca: 0.9210, val loss: 3.8693, val global acc: 0.7597, val local acc: 0.3275, val total acc: 0.7181
+
+
+d3:
+RA_ViT with 1 layer, BS = 32 with a total sum, cropped to 7x7 patch:
+PS C:\Users\zhong\OneDrive\Desktop\codex testing\aps360_bird_id\project> & C:/Users/zhong/miniconda3/envs/aps360_bird_id/python.exe "c:/Users/zhong/OneDrive/Desktop/codex testing/aps360_bird_id/project/RA_ViT_model.py"
+Epoch 1/5 | train loss: 6.4745, train global acc: 0.3606, train local acc: 0.1578, train total acca: 0.3337, val loss: 4.3851, val global acc: 0.5886, val local acc: 0.2926, val total acc: 0.5678
+Epoch 2/5 | train loss: 3.5147, train global acc: 0.6820, train local acc: 0.3787, train total acca: 0.6851, val loss: 3.7612, val global acc: 0.6888, val local acc: 0.3438, val total acc: 0.6607
+Epoch 3/5 | train loss: 2.5935, train global acc: 0.7842, train local acc: 0.5108, train total acca: 0.8077, val loss: 3.5930, val global acc: 0.7169, val local acc: 0.3658, val total acc: 0.6759
+Epoch 4/5 | train loss: 2.0109, train global acc: 0.8381, train local acc: 0.6064, train total acca: 0.8745, val loss: 3.5048, val global acc: 0.7473, val local acc: 0.3742, val total acc: 0.7068
+Epoch 5/5 | train loss: 1.5963, train global acc: 0.8725, train local acc: 0.6801, train total acca: 0.9175, val loss: 3.4693, val global acc: 0.7518, val local acc: 0.3939, val total acc: 0.7271
+
+
+notes: increasing the crop size seems to have resulted in general improvement in local acc -> global acc
+
+RA_ViT with 1 layer, BS = 32 with a total sum, cropped to 7x7 patch, centered on highest 3x3 hotspot:
+PS C:\Users\zhong\OneDrive\Desktop\codex testing\aps360_bird_id\project> & C:/Users/zhong/miniconda3/envs/aps360_bird_id/python.exe "c:/Users/zhong/OneDrive/Desktop/codex testing/aps360_bird_id/project/RA_ViT_model.py"
+Epoch 1/5 | train loss: 5.9340, train global acc: 0.3661, train local acc: 0.2373, train total acca: 0.3600, val loss: 3.6961, val global acc: 0.5796, val local acc: 0.4367, val total acc: 0.5881
+Epoch 2/5 | train loss: 2.8666, train global acc: 0.6793, train local acc: 0.5148, train total acca: 0.7084, val loss: 3.0155, val global acc: 0.6905, val local acc: 0.4952, val total acc: 0.6815
+Epoch 3/5 | train loss: 2.0127, train global acc: 0.7844, train local acc: 0.6429, train total acca: 0.8206, val loss: 2.7929, val global acc: 0.7130, val local acc: 0.5144, val total acc: 0.7057
+Epoch 4/5 | train loss: 1.5140, train global acc: 0.8412, train local acc: 0.7210, train total acca: 0.8802, val loss: 2.6864, val global acc: 0.7361, val local acc: 0.5526, val total acc: 0.7338
+Epoch 5/5 | train loss: 1.1709, train global acc: 0.8774, train local acc: 0.7794, train total acca: 0.9161, val loss: 2.6309, val global acc: 0.7440, val local acc: 0.5543, val total acc: 0.7524
+
+RA_ViT with 1 layer, BS = 32 with a total sum, cropped to 7x7 patch, centered on highest 3x3 hotspot, weight decay 0.0001:
+PS C:\Users\zhong\OneDrive\Desktop\codex testing\aps360_bird_id\project> & C:/Users/zhong/miniconda3/envs/aps360_bird_id/python.exe "c:/Users/zhong/OneDrive/Desktop/codex testing/aps360_bird_id/project/RA_ViT_model.py"
+Epoch 1/5 | train loss: 5.9316, train global acc: 0.3606, train local acc: 0.2375, train total acca: 0.3572, val loss: 3.7173, val global acc: 0.5875, val local acc: 0.4159, val total acc: 0.5881
+Epoch 2/5 | train loss: 2.8855, train global acc: 0.6835, train local acc: 0.5091, train total acca: 0.7035, val loss: 3.0237, val global acc: 0.6826, val local acc: 0.4907, val total acc: 0.6815
+Epoch 3/5 | train loss: 2.0416, train global acc: 0.7758, train local acc: 0.6391, train total acca: 0.8123, val loss: 2.7938, val global acc: 0.7186, val local acc: 0.5177, val total acc: 0.7119
+Epoch 4/5 | train loss: 1.5402, train global acc: 0.8375, train local acc: 0.7134, train total acca: 0.8746, val loss: 2.6911, val global acc: 0.7304, val local acc: 0.5414, val total acc: 0.7237
+Epoch 5/5 | train loss: 1.1918, train global acc: 0.8746, train local acc: 0.7743, train total acca: 0.9162, val loss: 2.5899, val global acc: 0.7473, val local acc: 0.5616, val total acc: 0.7541
+Training completed in 1410.35 seconds (23.51 minutes)
+
+
+RA_ViT with 1 layer, BS = 32 with a total sum, cropped to 7x7 patch, centered on highest 3x3 hotspot, weight decay 0.0001, with bn:
+PS C:\Users\zhong\OneDrive\Desktop\codex testing\aps360_bird_id\project> & C:/Users/zhong/miniconda3/envs/aps360_bird_id/python.exe "c:/Users/zhong/OneDrive/Desktop/codex testing/aps360_bird_id/project/RA_ViT_model.py"
+Epoch 1/5 | train loss: 5.6008, train global acc: 0.4315, train local acc: 0.2886, train total acca: 0.4298, val loss: 3.4600, val global acc: 0.6443, val local acc: 0.4761, val total acc: 0.6533
+Epoch 2/5 | train loss: 2.5999, train global acc: 0.7524, train local acc: 0.5739, train total acca: 0.7732, val loss: 2.8270, val global acc: 0.7153, val local acc: 0.5200, val total acc: 0.7124
+Epoch 3/5 | train loss: 1.7497, train global acc: 0.8398, train local acc: 0.6984, train total acca: 0.8627, val loss: 2.6222, val global acc: 0.7394, val local acc: 0.5622, val total acc: 0.7271
+Epoch 4/5 | train loss: 1.3040, train global acc: 0.8806, train local acc: 0.7646, train total acca: 0.9107, val loss: 2.5424, val global acc: 0.7518, val local acc: 0.5706, val total acc: 0.7535
+Epoch 5/5 | train loss: 0.9807, train global acc: 0.9098, train local acc: 0.8314, train total acca: 0.9400, val loss: 2.4832, val global acc: 0.7631, val local acc: 0.5903, val total acc: 0.7811
+
+RA_ViT with 1 layer, BS = 32 with a total sum, cropped to 7x7 patch, centered on highest 3x3 hotspot, weight decay 0.0001, with bn:
+PS C:\Users\zhong\OneDrive\Desktop\codex testing\aps360_bird_id\project> & C:/Users/zhong/miniconda3/envs/aps360_bird_id/python.exe "c:/Users/zhong/OneDrive/Desktop/codex testing/aps360_bird_id/project/RA_ViT_model.py"
+Epoch 1/10 | train loss: 5.6045, train global acc: 0.4300, train local acc: 0.2886, train total acca: 0.4283, val loss: 3.4640, val global acc: 0.6376, val local acc: 0.4615, val total acc: 0.6505
+Epoch 2/10 | train loss: 2.5887, train global acc: 0.7551, train local acc: 0.5778, train total acca: 0.7726, val loss: 2.7932, val global acc: 0.7327, val local acc: 0.5222, val total acc: 0.7310
+Epoch 3/10 | train loss: 1.7487, train global acc: 0.8370, train local acc: 0.6953, train total acca: 0.8654, val loss: 2.6419, val global acc: 0.7361, val local acc: 0.5442, val total acc: 0.7259
+Epoch 4/10 | train loss: 1.3011, train global acc: 0.8748, train local acc: 0.7650, train total acca: 0.9078, val loss: 2.5166, val global acc: 0.7642, val local acc: 0.5656, val total acc: 0.7642
+Epoch 5/10 | train loss: 0.9704, train global acc: 0.9108, train local acc: 0.8278, train total acca: 0.9434, val loss: 2.4537, val global acc: 0.7738, val local acc: 0.5847, val total acc: 0.7828
+Epoch 6/10 | train loss: 0.7639, train global acc: 0.9293, train local acc: 0.8702, train total acca: 0.9577, val loss: 2.5445, val global acc: 0.7676, val local acc: 0.5746, val total acc: 0.7772
+Epoch 7/10 | train loss: 0.6212, train global acc: 0.9452, train local acc: 0.8906, train total acca: 0.9702, val loss: 2.5592, val global acc: 0.7693, val local acc: 0.5898, val total acc: 0.7755
+Epoch 8/10 | train loss: 0.5071, train global acc: 0.9487, train local acc: 0.9178, train total acca: 0.9782, val loss: 2.6759, val global acc: 0.7687, val local acc: 0.5763, val total acc: 0.7772
+Epoch 9/10 | train loss: 0.4565, train global acc: 0.9537, train local acc: 0.9250, train total acca: 0.9794, val loss: 2.6387, val global acc: 0.7732, val local acc: 0.5768, val total acc: 0.7749
+Epoch 10/10 | train loss: 0.3876, train global acc: 0.9598, train local acc: 0.9392, train total acca: 0.9845, val loss: 2.6858, val global acc: 0.7828, val local acc: 0.5937, val total acc: 0.7873
