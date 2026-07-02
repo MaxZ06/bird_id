@@ -32,3 +32,6 @@ latex documents for course/
 Thumbs.db
 .vscode/
 .idea/
+
+# ignore init attempt
+project/init_attempt/

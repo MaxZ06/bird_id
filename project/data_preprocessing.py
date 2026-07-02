@@ -156,5 +156,5 @@ def preprocess_cub_images(data_root=DATA_ROOT, output_root=OUTPUT_ROOT, overwrit
     print(f"Saved {len(rows)} cropped images to {output_root}")
     print(f"Saved labels and crop metadata to {METADATA_PATH}")
 
-
-preprocess_cub_images()
+if __name__ == "__main__":
+    preprocess_cub_images()
