@@ -2,7 +2,7 @@ import time
 import torch
 from torch import nn
 from data_splitting import create_vit_b16_dataloaders
-from models import RA_ViT
+from models import RA_ViT, linear_combiner
 from pathlib import Path
 
 
@@ -49,7 +49,7 @@ def get_loss(loss):
 
 
 # function to run training or evaluation for one epoch of data
-def calculate_epoch_metrics(model, dataloader, criterion, device, optimizer=None):
+def calculate_epoch_metrics_classifier(model, dataloader, criterion, device, optimizer=None):
     is_training = optimizer is not None
     model.train() if is_training else model.eval()
 
@@ -89,36 +89,103 @@ def calculate_epoch_metrics(model, dataloader, criterion, device, optimizer=None
         "local_accuracy": total_local_correct / total_examples,
     }
 
-def generate_testing_log(bs, lr, epoch, optimizer, loss, history):
+
+def calculate_epoch_metrics_combiner(
+    model,
+    combiner,
+    dataloader,
+    criterion,
+    device,
+    optimizer=None,
+):
+    is_training = optimizer is not None
+    model.eval()
+    combiner.train() if is_training else combiner.eval()
+
+    total_loss = 0.0
+    total_correct = 0
+    total_examples = 0
+
+    with torch.set_grad_enabled(is_training):
+        for images, labels in dataloader:
+            images = images.to(device)
+            labels = labels.to(device)
+
+            if is_training:
+                optimizer.zero_grad()
+
+            # get global and local outputs from the classifier
+            with torch.no_grad():
+                global_logits, local_logits = model(images)
+                combined_logits = torch.cat((global_logits, local_logits), dim=1)
+
+            total_logits = combiner(combined_logits)
+            loss = criterion(total_logits, labels)
+
+            if is_training:
+                loss.backward()
+                optimizer.step()
+
+            batch_size = labels.size(0)
+            total_loss += loss.item() * batch_size
+            total_correct += (total_logits.argmax(dim=1) == labels).sum().item()
+            total_examples += batch_size
+
+    return {
+        "loss": total_loss / total_examples,
+        "accuracy": total_correct / total_examples,
+    }
+
+def generate_testing_log(bs, lr, epoch, optimizer, loss, history, for_combiner=False):
     path = Path("testing_logs/logs_by_version.txt")
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() == False:
         with path.open("w") as gen_file:
             gen_file.write("testing log: Max Zhong\n")
 
-    lines = path.read_text().splitlines()
-    versions = [line for line in lines if line.startswith("version")]
-    if versions:
-        last_ver = int(versions[-1].split()[1].rstrip(":"))
-    else:
-        last_ver = 0
-    with path.open("a") as w_file:
-        w_file.write(f"version {last_ver + 1}:\n")
-        w_file.write(f"RA_ViT with bs = {bs}, lr = {lr}, num trained epoch = {epoch}, optimizer = {optimizer}, loss function = {loss}\n")
-        w_file.write("with dropout = 0.3, batch normalization applied\n\n")
-        
-        for e in range(epoch):
-            train_metrics = history[e]['train']
-            val_metrics = history[e]['val']
-            w_file.write(
-            f"Epoch {e + 1}/{epoch} | "
-            f"train loss: {train_metrics['loss']:.4f}, "
-            f"train global acc: {train_metrics['global_accuracy']:.4f}, "
-            f"train local acc: {train_metrics['local_accuracy']:.4f}, "
-            f"val loss: {val_metrics['loss']:.4f}, "
-            f"val global acc: {val_metrics['global_accuracy']:.4f}, "
-            f"val local acc: {val_metrics['local_accuracy']:.4f}\n"
+    if for_combiner == False:
+        lines = path.read_text().splitlines()
+        versions = [line for line in lines if line.startswith("version")]
+        if versions:
+            last_ver = int(versions[-1].split()[1].rstrip(":"))
+        else:
+            last_ver = 0
+        with path.open("a") as w_file:
+            w_file.write(f"version {last_ver + 1}:\n")
+            w_file.write(f"RA_ViT with bs = {bs}, lr = {lr}, num trained epoch = {epoch}, optimizer = {optimizer}, loss function = {loss}\n")
+            w_file.write("with dropout = 0.3, batch normalization applied\n\n")
+            
+            for e in range(epoch):
+                train_metrics = history[e]['train']
+                val_metrics = history[e]['val']
+                w_file.write(
+                f"Epoch {e + 1}/{epoch} | "
+                f"train loss: {train_metrics['loss']:.4f}, "
+                f"train global acc: {train_metrics['global_accuracy']:.4f}, "
+                f"train local acc: {train_metrics['local_accuracy']:.4f}, "
+                f"val loss: {val_metrics['loss']:.4f}, "
+                f"val global acc: {val_metrics['global_accuracy']:.4f}, "
+                f"val local acc: {val_metrics['local_accuracy']:.4f}\n"
             )
+    
+# will be called right after a generate test log for classifier
+    if for_combiner == True:
+        with path.open("a") as append_file:
+            append_file.write("combiner statistic:\n")
+            for e in range(epoch):
+                train_metrics = history[e]['train']
+                val_metrics = history[e]['val']
+                append_file.write(
+                f"Epoch {e + 1}/{epoch} | "
+                f"train loss: {train_metrics['loss']:.4f}, "
+                f"train acc: {train_metrics['accuracy']:.4f}, "
+                f"val loss: {val_metrics['loss']:.4f}, "
+                f"val acc: {val_metrics['accuracy']:.4f}\n"
+                )
+
+
+
+
 
 
 def train_classifier(
@@ -162,14 +229,14 @@ def train_classifier(
     start_time = time.time()
 
     for epoch in range(epochs):
-        train_metrics = calculate_epoch_metrics(
+        train_metrics = calculate_epoch_metrics_classifier(
             model,
             train_loader,
             criterion,
             device,
             optimizer=optimizer,
         )
-        val_metrics = calculate_epoch_metrics(
+        val_metrics = calculate_epoch_metrics_classifier(
             model,
             val_loader,
             criterion,
@@ -189,7 +256,7 @@ def train_classifier(
             f"train local acc: {train_metrics['local_accuracy']:.4f}, "
             f"val loss: {val_metrics['loss']:.4f}, "
             f"val global acc: {val_metrics['global_accuracy']:.4f}, "
-            f"val local acc: {val_metrics['local_accuracy']:.4f}"
+            f"val local acc: {val_metrics['local_accuracy']:.4f} "
         )
 
     elapsed_seconds = time.time() - start_time
@@ -205,6 +272,96 @@ def train_classifier(
     }
 
 
+def train_combiner(
+    classifier_model,
+    batch_size=32,
+    learning_rate=0.001,
+    epochs=5,
+    optimizer="adam",
+    criterion="ce",
+    combiner=None,
+    data_root=None,
+    num_workers=0,
+    seed=42,
+    device=None,
+):
+    device = device or get_device()
+    dataloader_kwargs = {
+        "batch_size": batch_size,
+        "num_workers": num_workers,
+        "seed": seed,
+    }
+    if data_root is not None:
+        dataloader_kwargs["data_root"] = data_root
+
+    train_loader, val_loader, test_loader, class_names = create_vit_b16_dataloaders(
+        **dataloader_kwargs,
+    )
+
+    classifier_model.to(device)
+    classifier_model.eval()
+    for parameter in classifier_model.parameters():
+        parameter.requires_grad = False
+
+    combiner = combiner or linear_combiner(
+        summed_logits=2 * len(class_names),
+        out_logits=len(class_names),
+    )
+    combiner.to(device)
+
+    optimizer = get_optimizer(optimizer, combiner.parameters(), learning_rate)
+    criterion = get_loss(criterion)
+
+    history = []
+    start_time = time.time()
+
+    for epoch in range(epochs):
+        train_metrics = calculate_epoch_metrics_combiner(
+            classifier_model,
+            combiner,
+            train_loader,
+            criterion,
+            device,
+            optimizer=optimizer,
+        )
+        val_metrics = calculate_epoch_metrics_combiner(
+            classifier_model,
+            combiner,
+            val_loader,
+            criterion,
+            device,
+        )
+
+        history.append({
+            "epoch": epoch + 1,
+            "train": train_metrics,
+            "val": val_metrics,
+        })
+
+        print(
+            f"Epoch {epoch + 1}/{epochs} | "
+            f"train loss: {train_metrics['loss']:.4f}, "
+            f"train acc: {train_metrics['accuracy']:.4f}, "
+            f"val loss: {val_metrics['loss']:.4f}, "
+            f"val acc: {val_metrics['accuracy']:.4f}"
+        )
+    generate_testing_log(bs=batch_size, lr=learning_rate, epoch=epochs,
+                          optimizer="adam", loss="ce", history=history, for_combiner=True)
+    elapsed_seconds = time.time() - start_time
+
+    return {
+        "model": classifier_model,
+        "combiner": combiner,
+        "history": history,
+        "test_loader": test_loader,
+        "class_names": class_names,
+        "elapsed_seconds": elapsed_seconds,
+    }
+
+
 if __name__ == "__main__":
-    train_classifier(epochs=5)
+    classifier_model = RA_ViT(num_classes=200, freeze_backbones=True)
+    combiner_model = linear_combiner()
+    train_classifier(epochs=5, model=classifier_model)
+    train_combiner(classifier_model=classifier_model, combiner=combiner_model, epochs=5)
     
