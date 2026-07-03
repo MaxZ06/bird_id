@@ -2,7 +2,7 @@ import time
 import torch
 from torch import nn
 from data_splitting import create_vit_b16_dataloaders
-from models import RA_ViT, linear_combiner
+from models import RA_ViT
 from pathlib import Path
 
 
@@ -48,17 +48,14 @@ def get_loss(loss):
 
 
 
-
-def calculate_epoch_metrics(model, combiner, dataloader, criterion, device, optimizer=None):
+# function to run training or evaluation for one epoch of data
+def calculate_epoch_metrics(model, dataloader, criterion, device, optimizer=None):
     is_training = optimizer is not None
     model.train() if is_training else model.eval()
-    combiner.train() if is_training else combiner.eval()
 
     total_loss = 0.0
-    total_combiner_loss = 0.0
     total_global_correct = 0
     total_local_correct = 0
-    total_combiner_correct = 0
     total_examples = 0
 
 
@@ -71,15 +68,10 @@ def calculate_epoch_metrics(model, combiner, dataloader, criterion, device, opti
                 optimizer.zero_grad()
 
             global_logits, local_logits = model(images)
-            classifier_loss = criterion(global_logits, labels) + criterion(local_logits, labels)
-
-            combined_logits = torch.cat(
-                (global_logits.detach(), local_logits.detach()),
-                dim=1,
+            loss = (
+                criterion(global_logits, labels)
+                + criterion(local_logits, labels)
             )
-            total_logits = combiner(combined_logits)
-            combiner_loss = criterion(total_logits, labels)
-            loss = classifier_loss + combiner_loss
 
             if is_training:
                 loss.backward()
@@ -87,18 +79,14 @@ def calculate_epoch_metrics(model, combiner, dataloader, criterion, device, opti
 
             batch_size = labels.size(0)
             total_loss += loss.item() * batch_size
-            total_combiner_loss += combiner_loss.item() * batch_size
             total_global_correct += (global_logits.argmax(dim=1) == labels).sum().item()
             total_local_correct += (local_logits.argmax(dim=1) == labels).sum().item()
-            total_combiner_correct += (total_logits.argmax(dim=1) == labels).sum().item()
             total_examples += batch_size
 
     return {
         "loss": total_loss / total_examples,
-        "combiner_loss": total_combiner_loss / total_examples,
         "global_accuracy": total_global_correct / total_examples,
         "local_accuracy": total_local_correct / total_examples,
-        "total_accuracy": total_combiner_correct / total_examples,
     }
 
 def generate_testing_log(bs, lr, epoch, optimizer, loss, history):
@@ -127,22 +115,19 @@ def generate_testing_log(bs, lr, epoch, optimizer, loss, history):
             f"train loss: {train_metrics['loss']:.4f}, "
             f"train global acc: {train_metrics['global_accuracy']:.4f}, "
             f"train local acc: {train_metrics['local_accuracy']:.4f}, "
-            f"train total acc: {train_metrics['total_accuracy']:.4f}, "
             f"val loss: {val_metrics['loss']:.4f}, "
             f"val global acc: {val_metrics['global_accuracy']:.4f}, "
-            f"val local acc: {val_metrics['local_accuracy']:.4f}, "
-            f"val total acc: {val_metrics['total_accuracy']:.4f}\n"
+            f"val local acc: {val_metrics['local_accuracy']:.4f}\n"
             )
 
 
-def train(
+def train_classifier(
     batch_size=32,
     learning_rate=0.001,
     epochs=5,
     optimizer="adam",
     loss="ce",
     model=None,
-    combiner=None,
     data_root=None,
     num_workers=0,
     seed=42,
@@ -162,17 +147,14 @@ def train(
     )
 
     model = model or RA_ViT(num_classes=len(class_names), freeze_backbones=True)
-    combiner = combiner or linear_combiner(
-        summed_logits=2 * len(class_names),
-        out_logits=len(class_names),
-    )
     model.to(device)
-    combiner.to(device)
     set_feedforward_trainable(model)
 
     trainable_parameters = [
         parameter for parameter in model.parameters() if parameter.requires_grad
-    ] + list(combiner.parameters())
+    ]
+    optimizer_name = optimizer
+    loss_name = loss
     optimizer = get_optimizer(optimizer, trainable_parameters, learning_rate)
     criterion = get_loss(loss)
 
@@ -182,7 +164,6 @@ def train(
     for epoch in range(epochs):
         train_metrics = calculate_epoch_metrics(
             model,
-            combiner,
             train_loader,
             criterion,
             device,
@@ -190,7 +171,6 @@ def train(
         )
         val_metrics = calculate_epoch_metrics(
             model,
-            combiner,
             val_loader,
             criterion,
             device,
@@ -207,20 +187,17 @@ def train(
             f"train loss: {train_metrics['loss']:.4f}, "
             f"train global acc: {train_metrics['global_accuracy']:.4f}, "
             f"train local acc: {train_metrics['local_accuracy']:.4f}, "
-            f"train total acc: {train_metrics['total_accuracy']:.4f}, "
             f"val loss: {val_metrics['loss']:.4f}, "
             f"val global acc: {val_metrics['global_accuracy']:.4f}, "
-            f"val local acc: {val_metrics['local_accuracy']:.4f}, "
-            f"val total acc: {val_metrics['total_accuracy']:.4f}"
+            f"val local acc: {val_metrics['local_accuracy']:.4f}"
         )
 
     elapsed_seconds = time.time() - start_time
     generate_testing_log(bs=batch_size, lr=learning_rate, epoch=epochs,
-                          optimizer=optimizer, loss=loss, history=history)
+                          optimizer=optimizer_name, loss=loss_name, history=history)
 
     return {
         "model": model,
-        "combiner": combiner,
         "history": history,
         "test_loader": test_loader,
         "class_names": class_names,
@@ -229,5 +206,5 @@ def train(
 
 
 if __name__ == "__main__":
-    train(epochs=5)
+    train_classifier(epochs=5)
     
