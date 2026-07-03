@@ -47,6 +47,13 @@ def get_loss(loss):
     return loss
 
 
+def save_checkpoint(model, checkpoint_path):
+    checkpoint_path = Path(checkpoint_path)
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(model.state_dict(), checkpoint_path)
+    return checkpoint_path
+
+
 
 # function to run training or evaluation for one epoch of data
 def calculate_epoch_metrics_classifier(model, dataloader, criterion, device, optimizer=None):
@@ -199,6 +206,7 @@ def train_classifier(
     num_workers=0,
     seed=42,
     device=None,
+    checkpoint_path="checkpoints/ra_vit_classifier.pt",
 ):
     device = device or get_device()
     dataloader_kwargs = {
@@ -262,6 +270,7 @@ def train_classifier(
     elapsed_seconds = time.time() - start_time
     generate_testing_log(bs=batch_size, lr=learning_rate, epoch=epochs,
                           optimizer=optimizer_name, loss=loss_name, history=history)
+    checkpoint_path = save_checkpoint(model, checkpoint_path)
 
     return {
         "model": model,
@@ -269,6 +278,7 @@ def train_classifier(
         "test_loader": test_loader,
         "class_names": class_names,
         "elapsed_seconds": elapsed_seconds,
+        "checkpoint_path": checkpoint_path,
     }
 
 
@@ -284,6 +294,7 @@ def train_combiner(
     num_workers=0,
     seed=42,
     device=None,
+    checkpoint_path="checkpoints/linear_combiner.pt",
 ):
     device = device or get_device()
     dataloader_kwargs = {
@@ -348,6 +359,7 @@ def train_combiner(
     generate_testing_log(bs=batch_size, lr=learning_rate, epoch=epochs,
                           optimizer="adam", loss="ce", history=history, for_combiner=True)
     elapsed_seconds = time.time() - start_time
+    checkpoint_path = save_checkpoint(combiner, checkpoint_path)
 
     return {
         "model": classifier_model,
@@ -356,6 +368,7 @@ def train_combiner(
         "test_loader": test_loader,
         "class_names": class_names,
         "elapsed_seconds": elapsed_seconds,
+        "checkpoint_path": checkpoint_path,
     }
 
 

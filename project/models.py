@@ -138,15 +138,10 @@ def attention_crop(
 
 
 class linear_combiner(nn.Module):
-    def __init__(self, summed_logits=400, fc1_dim=320, out_logits=200):
+    def __init__(self, summed_logits=400, out_logits=200):
         super().__init__()
         self.name = "linearCombiner"
-        self.fcs = nn.Sequential(
-            nn.Linear(summed_logits, fc1_dim),
-            nn.BatchNorm1d(fc1_dim),
-            nn.ReLU(),
-            nn.Linear(fc1_dim, out_logits), 
-        )
+        self.fcs = nn.Linear(summed_logits, out_logits)
 
     def forward(self, logits):
         out = self.fcs(logits)
