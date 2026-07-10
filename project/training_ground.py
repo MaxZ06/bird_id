@@ -3,7 +3,7 @@ from pathlib import Path
 import torch
 
 from models import RA_ViT
-from train import get_device, train_combiner
+from train import get_device, train_linear_combiner, train_weighted_combiner
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -23,13 +23,15 @@ def load_ra_vit_model(checkpoint_path=RA_VIT_CHECKPOINT_PATH, device=None):
 
 
 if __name__ == "__main__":
+
+    # testing done on a pretrained classifier model (primary model)
     device = get_device()
     ra_vit_model = load_ra_vit_model(device=device)
-    train_combiner(
+    train_weighted_combiner(
         classifier_model=ra_vit_model,
-        batch_size=512,
-        learning_rate=0.01,
-        epochs=5,
+        batch_size=32,
+        learning_rate=0.001,
+        epochs=1,
         optimizer="adam",
         criterion="ce",
         device=device,

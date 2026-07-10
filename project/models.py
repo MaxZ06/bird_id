@@ -136,6 +136,19 @@ def attention_crop(
         align_corners=False,
     )
 
+class weighted_logit_combiner(nn.Module):
+    def __init__(self, init_w1=0.3):
+        super().__init__()
+        self.name = "weightedLogitCombiner"
+
+        init_w1 = torch.tensor(init_w1)
+        self.raw_w1 = nn.Parameter(torch.logit(init_w1))
+
+    def forward(self, global_logits, local_logits):
+        w1 = torch.sigmoid(self.raw_w1)
+        total_logits = (1 - w1) * global_logits + w1 * local_logits
+        return total_logits
+
 
 class linear_combiner(nn.Module):
     def __init__(self, summed_logits=400, out_logits=200):
@@ -146,7 +159,6 @@ class linear_combiner(nn.Module):
     def forward(self, logits):
         out = self.fcs(logits)
         return out
-
 
 class RA_ViT(nn.Module):
     def __init__(

@@ -2,7 +2,7 @@ import time
 import torch
 from torch import nn
 from data_splitting import create_vit_b16_dataloaders
-from models import RA_ViT, linear_combiner
+from models import RA_ViT, linear_combiner, weighted_logit_combiner
 from pathlib import Path
 
 
@@ -111,6 +111,7 @@ def calculate_epoch_metrics_combiner(
 
     total_loss = 0.0
     total_correct = 0
+    total_top_3_correct = 0
     total_examples = 0
 
     with torch.set_grad_enabled(is_training):
@@ -136,11 +137,67 @@ def calculate_epoch_metrics_combiner(
             batch_size = labels.size(0)
             total_loss += loss.item() * batch_size
             total_correct += (total_logits.argmax(dim=1) == labels).sum().item()
+            top_3_predictions = total_logits.topk(3, dim=1).indices
+            total_top_3_correct += (
+                top_3_predictions == labels.unsqueeze(1)
+            ).any(dim=1).sum().item()
             total_examples += batch_size
 
     return {
         "loss": total_loss / total_examples,
         "accuracy": total_correct / total_examples,
+        "top_3_acc": total_top_3_correct / total_examples,
+    }
+
+
+def calculate_epoch_metrics_weighted_combiner(
+    model,
+    combiner,
+    dataloader,
+    criterion,
+    device,
+    optimizer=None,
+):
+    is_training = optimizer is not None
+    model.eval()
+    combiner.train() if is_training else combiner.eval()
+
+    total_loss = 0.0
+    total_correct = 0
+    total_top_3_correct = 0
+    total_examples = 0
+
+    with torch.set_grad_enabled(is_training):
+        for images, labels in dataloader:
+            images = images.to(device)
+            labels = labels.to(device)
+
+            if is_training:
+                optimizer.zero_grad()
+
+            with torch.no_grad():
+                global_logits, local_logits = model(images)
+
+            total_logits = combiner(global_logits, local_logits)
+            loss = criterion(total_logits, labels)
+
+            if is_training:
+                loss.backward()
+                optimizer.step()
+
+            batch_size = labels.size(0)
+            total_loss += loss.item() * batch_size
+            total_correct += (total_logits.argmax(dim=1) == labels).sum().item()
+            top_3_predictions = total_logits.topk(3, dim=1).indices
+            total_top_3_correct += (
+                top_3_predictions == labels.unsqueeze(1)
+            ).any(dim=1).sum().item()
+            total_examples += batch_size
+
+    return {
+        "loss": total_loss / total_examples,
+        "accuracy": total_correct / total_examples,
+        "top_3_acc": total_top_3_correct / total_examples,
     }
 
 def generate_testing_log(bs, lr, epoch, optimizer, loss, history, for_combiner=False):
@@ -186,8 +243,10 @@ def generate_testing_log(bs, lr, epoch, optimizer, loss, history, for_combiner=F
                 f"Epoch {e + 1}/{epoch} | "
                 f"train loss: {train_metrics['loss']:.4f}, "
                 f"train acc: {train_metrics['accuracy']:.4f}, "
+                f"train top 3 acc: {train_metrics['top_3_acc']:.4f}, "
                 f"val loss: {val_metrics['loss']:.4f}, "
-                f"val acc: {val_metrics['accuracy']:.4f}\n"
+                f"val acc: {val_metrics['accuracy']:.4f}, "
+                f"val top 3 acc: {val_metrics['top_3_acc']:.4f}\n"
                 )
 
 
@@ -282,7 +341,7 @@ def train_classifier(
     }
 
 
-def train_combiner(
+def train_linear_combiner(
     classifier_model,
     batch_size=32,
     learning_rate=0.001,
@@ -353,8 +412,101 @@ def train_combiner(
             f"Epoch {epoch + 1}/{epochs} | "
             f"train loss: {train_metrics['loss']:.4f}, "
             f"train acc: {train_metrics['accuracy']:.4f}, "
+            f"train top 3 acc: {train_metrics['top_3_acc']:.4f}, "
             f"val loss: {val_metrics['loss']:.4f}, "
-            f"val acc: {val_metrics['accuracy']:.4f}"
+            f"val acc: {val_metrics['accuracy']:.4f}, "
+            f"val top 3 acc: {val_metrics['top_3_acc']:.4f}"
+        )
+    generate_testing_log(bs=batch_size, lr=learning_rate, epoch=epochs,
+                          optimizer="adam", loss="ce", history=history, for_combiner=True)
+    elapsed_seconds = time.time() - start_time
+    checkpoint_path = save_checkpoint(combiner, checkpoint_path)
+
+    return {
+        "model": classifier_model,
+        "combiner": combiner,
+        "history": history,
+        "test_loader": test_loader,
+        "class_names": class_names,
+        "elapsed_seconds": elapsed_seconds,
+        "checkpoint_path": checkpoint_path,
+    }
+
+
+def train_weighted_combiner(
+    classifier_model,
+    batch_size=32,
+    learning_rate=0.001,
+    epochs=5,
+    optimizer="adam",
+    criterion="ce",
+    combiner=None,
+    data_root=None,
+    num_workers=0,
+    seed=42,
+    device=None,
+    checkpoint_path="checkpoints/weighted_combiner.pt",
+):
+    device = device or get_device()
+    dataloader_kwargs = {
+        "batch_size": batch_size,
+        "num_workers": num_workers,
+        "seed": seed,
+    }
+    if data_root is not None:
+        dataloader_kwargs["data_root"] = data_root
+
+    train_loader, val_loader, test_loader, class_names = create_vit_b16_dataloaders(
+        **dataloader_kwargs,
+    )
+
+    classifier_model.to(device)
+    classifier_model.eval()
+    for parameter in classifier_model.parameters():
+        parameter.requires_grad = False
+
+    combiner = combiner or weighted_logit_combiner()
+    combiner.to(device)
+
+    optimizer = get_optimizer(optimizer, combiner.parameters(), learning_rate)
+    criterion = get_loss(criterion)
+
+    history = []
+    start_time = time.time()
+
+    for epoch in range(epochs):
+        train_metrics = calculate_epoch_metrics_weighted_combiner(
+            classifier_model,
+            combiner,
+            train_loader,
+            criterion,
+            device,
+            optimizer=optimizer,
+        )
+        val_metrics = calculate_epoch_metrics_weighted_combiner(
+            classifier_model,
+            combiner,
+            val_loader,
+            criterion,
+            device,
+        )
+
+        history.append({
+            "epoch": epoch + 1,
+            "train": train_metrics,
+            "val": val_metrics,
+        })
+
+        w1 = torch.sigmoid(combiner.raw_w1).item()
+        print(
+            f"Epoch {epoch + 1}/{epochs} | "
+            f"train loss: {train_metrics['loss']:.4f}, "
+            f"train acc: {train_metrics['accuracy']:.4f}, "
+            f"train top 3 acc: {train_metrics['top_3_acc']:.4f}, "
+            f"val loss: {val_metrics['loss']:.4f}, "
+            f"val acc: {val_metrics['accuracy']:.4f}, "
+            f"val top 3 acc: {val_metrics['top_3_acc']:.4f}, "
+            f"w1: {w1:.4f}"
         )
     generate_testing_log(bs=batch_size, lr=learning_rate, epoch=epochs,
                           optimizer="adam", loss="ce", history=history, for_combiner=True)
@@ -376,5 +528,5 @@ if __name__ == "__main__":
     classifier_model = RA_ViT(num_classes=200, freeze_backbones=True)
     combiner_model = linear_combiner()
     train_classifier(epochs=5, model=classifier_model)
-    train_combiner(classifier_model=classifier_model, combiner=combiner_model, epochs=5)
+    train_linear_combiner(classifier_model=classifier_model, combiner=combiner_model, epochs=5)
     
