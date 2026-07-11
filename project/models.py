@@ -151,14 +151,18 @@ class weighted_logit_combiner(nn.Module):
 
 
 class linear_combiner(nn.Module):
-    def __init__(self, summed_logits=400, out_logits=200):
+    def __init__(self, summed_logits=400, hidden_layer=320, out_logits=200):
         super().__init__()
         self.name = "linearCombiner"
-        self.fcs = nn.Linear(summed_logits, out_logits)
+        self.layers = nn.Sequential(
+            nn.Linear(summed_logits, hidden_layer),
+            nn.BatchNorm1d(hidden_layer),
+            nn.ReLU(),
+            nn.Linear(hidden_layer, out_logits)
+            )
 
     def forward(self, logits):
-        out = self.fcs(logits)
-        return out
+        return self.layers(logits)
 
 class RA_ViT(nn.Module):
     def __init__(

@@ -201,4 +201,4 @@ def train_simple_vit_b16(
 
 
 if __name__ == "__main__":
-    train_simple_vit_b16()
+    train_simple_vit_b16(epochs=10, checkpoint_path="checkpoints/simple_vit_b16_e10.pt")

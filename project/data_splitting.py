@@ -17,7 +17,27 @@ VIT_B16_MEAN = VIT_B16_WEIGHT_TRANSFORMS.mean
 VIT_B16_STD = VIT_B16_WEIGHT_TRANSFORMS.std
 
 
-vit_b16_transform = transforms.Compose([
+vit_b16_train_transform = transforms.Compose([
+    transforms.RandomResizedCrop(
+        VIT_B16_IMAGE_SIZE,
+        scale=(0.75, 1.0),
+        ratio=(0.9, 1.1),
+    ),
+    transforms.RandomHorizontalFlip(p=0.5),
+    transforms.ColorJitter(
+        brightness=0.2,
+        contrast=0.2,
+        saturation=0.2,
+        hue=0.02,
+    ),
+    transforms.RandomRotation(degrees=10),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=VIT_B16_MEAN, std=VIT_B16_STD),
+    transforms.RandomErasing(p=0.25, scale=(0.02, 0.12), ratio=(0.3, 3.3)),
+])
+
+
+vit_b16_eval_transform = transforms.Compose([
     transforms.Resize((VIT_B16_IMAGE_SIZE, VIT_B16_IMAGE_SIZE)),
     transforms.ToTensor(),
     transforms.Normalize(mean=VIT_B16_MEAN, std=VIT_B16_STD),
@@ -72,18 +92,27 @@ def create_vit_b16_dataloaders(
     val_ratio=0.15,
     test_ratio=0.15,
 ):
-    dataset = datasets.ImageFolder(root=data_root, transform=vit_b16_transform)
+    split_dataset = datasets.ImageFolder(root=data_root, transform=vit_b16_eval_transform)
     train_indices, val_indices, test_indices = stratified_train_val_test_split(
-        dataset,
+        split_dataset,
         train_ratio=train_ratio,
         val_ratio=val_ratio,
         test_ratio=test_ratio,
         seed=seed,
     )
 
-    train_dataset = Subset(dataset, train_indices)
-    val_dataset = Subset(dataset, val_indices)
-    test_dataset = Subset(dataset, test_indices)
+    train_dataset = Subset(
+        datasets.ImageFolder(root=data_root, transform=vit_b16_train_transform),
+        train_indices,
+    )
+    val_dataset = Subset(
+        datasets.ImageFolder(root=data_root, transform=vit_b16_eval_transform),
+        val_indices,
+    )
+    test_dataset = Subset(
+        datasets.ImageFolder(root=data_root, transform=vit_b16_eval_transform),
+        test_indices,
+    )
 
     generator = torch.Generator().manual_seed(seed)
     train_loader = DataLoader(
@@ -109,7 +138,7 @@ def create_vit_b16_dataloaders(
         pin_memory=torch.cuda.is_available(),
     )
 
-    return train_loader, val_loader, test_loader, dataset.classes
+    return train_loader, val_loader, test_loader, split_dataset.classes
 
 
 

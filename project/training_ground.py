@@ -26,14 +26,5 @@ if __name__ == "__main__":
 
     # testing done on a pretrained classifier model (primary model)
     device = get_device()
-    ra_vit_model = load_ra_vit_model(device=device)
-    train_weighted_combiner(
-        classifier_model=ra_vit_model,
-        batch_size=32,
-        learning_rate=0.001,
-        epochs=1,
-        optimizer="adam",
-        criterion="ce",
-        device=device,
-        checkpoint_path=COMBINER_CHECKPOINT_PATH,
-    )
+    ra_vit_model = load_ra_vit_model(checkpoint_path="checkpoints/ra_vit_classifier_withDataAug_10e.pt", device=device)
+    train_linear_combiner(classifier_model=ra_vit_model, learning_rate=0.01, epochs=10, checkpoint_path="checkpoints/lienar_combiner_lr0.01")

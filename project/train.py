@@ -526,7 +526,17 @@ def train_weighted_combiner(
 
 if __name__ == "__main__":
     classifier_model = RA_ViT(num_classes=200, freeze_backbones=True)
+    combiner = weighted_logit_combiner()
+    train_classifier(epochs=10, model=classifier_model, checkpoint_path="checkpoints/ra_vit_classifier_withDataAug_10e.pt")
+    train_weighted_combiner(classifier_model=classifier_model,
+        batch_size=32,
+        learning_rate=0.01,
+        epochs=1,
+        optimizer="adam",
+        criterion="ce",
+        checkpoint_path="checkpoints/weighted_combiner_lr0.01_e1.pt")
+    """
     combiner_model = linear_combiner()
     train_classifier(epochs=5, model=classifier_model)
     train_linear_combiner(classifier_model=classifier_model, combiner=combiner_model, epochs=5)
-    
+    """
