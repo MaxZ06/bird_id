@@ -63,6 +63,7 @@ def calculate_epoch_metrics_classifier(model, dataloader, criterion, device, opt
     total_loss = 0.0
     total_global_correct = 0
     total_local_correct = 0
+    total_summed_correct = 0
     total_examples = 0
 
 
@@ -75,6 +76,7 @@ def calculate_epoch_metrics_classifier(model, dataloader, criterion, device, opt
                 optimizer.zero_grad()
 
             global_logits, local_logits = model(images)
+            total_logits = global_logits + local_logits
             loss = (
                 criterion(global_logits, labels)
                 + criterion(local_logits, labels)
@@ -88,12 +90,14 @@ def calculate_epoch_metrics_classifier(model, dataloader, criterion, device, opt
             total_loss += loss.item() * batch_size
             total_global_correct += (global_logits.argmax(dim=1) == labels).sum().item()
             total_local_correct += (local_logits.argmax(dim=1) == labels).sum().item()
+            total_summed_correct += (total_logits.argmax(dim=1) == labels).sum().item()
             total_examples += batch_size
 
     return {
         "loss": total_loss / total_examples,
         "global_accuracy": total_global_correct / total_examples,
         "local_accuracy": total_local_correct / total_examples,
+        "summed_accuracy": total_summed_correct / total_examples,
     }
 
 
@@ -321,9 +325,11 @@ def train_classifier(
             f"train loss: {train_metrics['loss']:.4f}, "
             f"train global acc: {train_metrics['global_accuracy']:.4f}, "
             f"train local acc: {train_metrics['local_accuracy']:.4f}, "
+            f"train summed acc: {train_metrics['summed_accuracy']:.4f}, "
             f"val loss: {val_metrics['loss']:.4f}, "
             f"val global acc: {val_metrics['global_accuracy']:.4f}, "
-            f"val local acc: {val_metrics['local_accuracy']:.4f} "
+            f"val local acc: {val_metrics['local_accuracy']:.4f}, "
+            f"val summed acc: {val_metrics['summed_accuracy']:.4f} "
         )
 
     elapsed_seconds = time.time() - start_time
@@ -526,17 +532,4 @@ def train_weighted_combiner(
 
 if __name__ == "__main__":
     classifier_model = RA_ViT(num_classes=200, freeze_backbones=True)
-    combiner = weighted_logit_combiner()
-    train_classifier(epochs=10, model=classifier_model, checkpoint_path="checkpoints/ra_vit_classifier_withDataAug_dced_10e.pt")
-    train_weighted_combiner(classifier_model=classifier_model,
-        batch_size=32,
-        learning_rate=0.01,
-        epochs=1,
-        optimizer="adam",
-        criterion="ce",
-        checkpoint_path="checkpoints/weighted_combiner_lr0.01_dced_e1.pt")
-    """
-    combiner_model = linear_combiner()
-    train_classifier(epochs=5, model=classifier_model)
-    train_linear_combiner(classifier_model=classifier_model, combiner=combiner_model, epochs=5)
-    """
+    train_classifier(epochs=10, model=classifier_model, checkpoint_path="checkpoints/ra_vit_classifier_preprocessed_10e_comb0.5.pt")
