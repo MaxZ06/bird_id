@@ -86,6 +86,7 @@ def plot_class_counts(class_counts, output_path=CLASS_COUNT_PLOT):
     plt.tight_layout()
     plt.savefig(output_path, dpi=200)
     plt.close()
+    plt.ylim(0, 61)
     return output_path
 
 

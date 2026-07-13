@@ -527,9 +527,11 @@ def train_weighted_combiner(
         "class_names": class_names,
         "elapsed_seconds": elapsed_seconds,
         "checkpoint_path": checkpoint_path,
+
     }
+
 
 
 if __name__ == "__main__":
     classifier_model = RA_ViT(num_classes=200, freeze_backbones=True)
-    train_classifier(epochs=10, model=classifier_model, checkpoint_path="checkpoints/ra_vit_classifier_preprocessed_10e_comb0.5.pt")
+    train_classifier(epochs=2, model=classifier_model, learning_rate=0.005, batch_size=128, checkpoint_path="checkpoints/ra_vit_classifier_preprocessed_nblur_ngauss_10e_comb0.5_lr0.005bs128.pt")
