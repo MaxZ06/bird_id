@@ -1,4 +1,5 @@
 from pathlib import Path
+import statistics
 
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -73,6 +74,18 @@ def get_detailed_stats(class_counts):
     return lname, hname
 
 
+def get_class_count_distribution_stats(class_counts, sample_std=False):
+    image_counts = list(class_counts.values())
+    if not image_counts:
+        raise ValueError("class_counts must contain at least one class.")
+
+    std_function = statistics.stdev if sample_std else statistics.pstdev
+    return {
+        "median": statistics.median(image_counts),
+        "std": std_function(image_counts),
+    }
+
+
 def plot_class_counts(class_counts, output_path=CLASS_COUNT_PLOT):
     class_names = list(class_counts.keys())
     image_counts = list(class_counts.values())
@@ -116,6 +129,10 @@ def main():
     print(f"Total images: {total_images}")
 
     print(f"avg img per class: {total_images / 200}")
+    distribution_stats = get_class_count_distribution_stats(class_counts)
+    print(f"median img per class: {distribution_stats['median']}")
+    print(f"std dev img per class: {distribution_stats['std']:.4f}")
+ 
     lname, hname = get_detailed_stats(class_counts)
     print(f"{hname} has the most img at {class_counts[hname]},{lname} has the least img at {class_counts[lname]} ")
     output_path = plot_class_counts(class_counts, output_path="project\data_set_distributions\class_image_counts_aftercleaning.png")
