@@ -1,36 +1,41 @@
+import sys
 import time
 from pathlib import Path
 
 import torch
 from torch import nn
-from torchvision.models import ViT_B_16_Weights, vit_b_16
+from torchvision.models import ResNet50_Weights, resnet50
 
-from project.data_splitting import create_vit_b16_dataloaders
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from src.data_preprocessing.data_splitting import create_vit_b16_dataloaders
 
 
 NUM_BIRD_CLASSES = 200
-VIT_B16_FEATURE_DIM = 768
+RESNET50_FEATURE_DIM = 2048
 
 
-class SimpleViTB16(nn.Module):
+class SimpleResNet50(nn.Module):
     def __init__(
         self,
         num_classes=NUM_BIRD_CLASSES,
         hidden_dim=512,
         dropout=0.3,
-        weights=ViT_B_16_Weights.DEFAULT,
+        weights=ResNet50_Weights.DEFAULT,
     ):
         super().__init__()
-        self.name = "SimpleViTB16"
+        self.name = "SimpleResNet50"
 
-        self.backbone = vit_b_16(weights=weights)
-        self.backbone.heads = nn.Identity()
+        self.backbone = resnet50(weights=weights)
+        self.backbone.fc = nn.Identity()
 
         for parameter in self.backbone.parameters():
             parameter.requires_grad = False
 
         self.classifier = nn.Sequential(
-            nn.Linear(VIT_B16_FEATURE_DIM, hidden_dim),
+            nn.Linear(RESNET50_FEATURE_DIM, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
             nn.ReLU(),
             nn.Dropout(dropout),
@@ -41,6 +46,10 @@ class SimpleViTB16(nn.Module):
         features = self.backbone(images)
         logits = self.classifier(features)
         return logits
+
+
+def get_trainable_parameters(model):
+    return [parameter for parameter in model.parameters() if parameter.requires_grad]
 
 
 def get_device():
@@ -118,7 +127,7 @@ def calculate_epoch_metrics(model, dataloader, criterion, device, optimizer=None
     }
 
 
-def train_simple_vit_b16(
+def train_simple_resnet50(
     batch_size=32,
     learning_rate=0.001,
     epochs=5,
@@ -129,7 +138,7 @@ def train_simple_vit_b16(
     num_workers=0,
     seed=42,
     device=None,
-    checkpoint_path="checkpoints/simple_vit_b16.pt",
+    checkpoint_path=Path(__file__).resolve().parents[2] / "checkpoints" / "simple_resnet50.pt",
 ):
     device = device or get_device()
     dataloader_kwargs = {
@@ -144,12 +153,10 @@ def train_simple_vit_b16(
         **dataloader_kwargs,
     )
 
-    model = model or SimpleViTB16(num_classes=len(class_names))
+    model = model or SimpleResNet50(num_classes=len(class_names))
     model.to(device)
 
-    trainable_parameters = [
-        parameter for parameter in model.parameters() if parameter.requires_grad
-    ]
+    trainable_parameters = get_trainable_parameters(model)
     optimizer = get_optimizer(optimizer, trainable_parameters, learning_rate)
     criterion = get_loss(loss)
 
@@ -201,4 +208,9 @@ def train_simple_vit_b16(
 
 
 if __name__ == "__main__":
-    train_simple_vit_b16(epochs=10, checkpoint_path="checkpoints/simple_vit_b16_e10.pt")
+    train_simple_resnet50(
+        epochs=10,
+        checkpoint_path=Path(__file__).resolve().parents[2]
+        / "checkpoints"
+        / "simple_resnet50_e10.pt",
+    )

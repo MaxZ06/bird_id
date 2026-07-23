@@ -8,13 +8,27 @@ from torchvision import datasets, transforms
 from torchvision.models import ViT_B_16_Weights
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-CROPPED_DATA_ROOT = PROJECT_ROOT / "CUB_200_2011_cropped_square"
+SRC_ROOT = Path(__file__).resolve().parents[1]
+CROPPED_DATA_ROOT = SRC_ROOT / "CUB_200_2011_cropped_square"
 VIT_B16_IMAGE_SIZE = 224
 VIT_B16_WEIGHTS = ViT_B_16_Weights.DEFAULT
 VIT_B16_WEIGHT_TRANSFORMS = VIT_B16_WEIGHTS.transforms()
 VIT_B16_MEAN = VIT_B16_WEIGHT_TRANSFORMS.mean
 VIT_B16_STD = VIT_B16_WEIGHT_TRANSFORMS.std
+
+
+class RandomGaussianNoise:
+    def __init__(self, mean=0.0, std=0.03, p=0.5):
+        self.mean = mean
+        self.std = std
+        self.p = p
+
+    def __call__(self, image_tensor):
+        if torch.rand(1).item() >= self.p:
+            return image_tensor
+
+        noise = torch.randn_like(image_tensor) * self.std + self.mean
+        return (image_tensor + noise).clamp(0.0, 1.0)
 
 
 vit_b16_train_transform = transforms.Compose([

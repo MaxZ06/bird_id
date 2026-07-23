@@ -6,9 +6,10 @@ import tarfile
 from PIL import Image
 
 
-ARCHIVE_PATH = Path("CUB_200_2011.tgz")
-DATA_ROOT = Path("CUB_200_2011")
-OUTPUT_ROOT = Path("CUB_200_2011_cropped_square")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ARCHIVE_PATH = REPO_ROOT / "CUB_200_2011.tgz"
+DATA_ROOT = REPO_ROOT / "CUB_200_2011"
+OUTPUT_ROOT = REPO_ROOT / "src" / "CUB_200_2011_cropped_square"
 METADATA_PATH = OUTPUT_ROOT / "processed_images.csv"
 
 
@@ -107,6 +108,8 @@ def crop_square_around_box(image, bbox):
 
 def preprocess_cub_images(data_root=DATA_ROOT, output_root=OUTPUT_ROOT, overwrite=True):
     extract_cub_if_needed(data_root=data_root)
+    output_root = Path(output_root)
+    metadata_path = output_root / "processed_images.csv"
     output_root.mkdir(parents=True, exist_ok=True)
 
     image_paths = read_image_paths(data_root)
@@ -148,13 +151,13 @@ def preprocess_cub_images(data_root=DATA_ROOT, output_root=OUTPUT_ROOT, overwrit
         if index % 500 == 0:
             print(f"Processed {index}/{len(image_paths)} images")
 
-    with METADATA_PATH.open("w", newline="", encoding="utf-8") as f:
+    with metadata_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=rows[0].keys())
         writer.writeheader()
         writer.writerows(rows)
 
     print(f"Saved {len(rows)} cropped images to {output_root}")
-    print(f"Saved labels and crop metadata to {METADATA_PATH}")
+    print(f"Saved labels and crop metadata to {metadata_path}")
 
 if __name__ == "__main__":
     preprocess_cub_images()

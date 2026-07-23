@@ -44,8 +44,7 @@ def extract_attention_map(vit_backbone, images, layer_index=-1, average_heads=Tr
     encoder = vit_backbone.encoder
     tokens = encoder.dropout(tokens)
     layers = list(encoder.layers.children())
-    selected_layer_index = layer_index % len(layers)
-    selected_attention = None
+    layer_attentions = []
 
     for index, layer in enumerate(layers):
         attention_input = layer.ln_1(tokens)
@@ -59,13 +58,12 @@ def extract_attention_map(vit_backbone, images, layer_index=-1, average_heads=Tr
         tokens = tokens + layer.dropout(attention_output)
         tokens = tokens + layer.mlp(layer.ln_2(tokens))
 
-        if index == selected_layer_index:
-            selected_attention = attention_weights
+        layer_attentions.append(attention_weights[:, :, 0, 1:])
 
-    if selected_attention is None:
+    if not layer_attentions:
         raise RuntimeError("Could not extract ViT attention weights.")
 
-    class_to_patch_attention = selected_attention[:, :, 0, 1:]
+    class_to_patch_attention = torch.stack(layer_attentions, dim=0).mean(dim=0)
     if average_heads:
         class_to_patch_attention = class_to_patch_attention.mean(dim=1)
         return class_to_patch_attention.reshape(
