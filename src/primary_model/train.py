@@ -1,9 +1,16 @@
+import sys
 import time
+from pathlib import Path
+
 import torch
 from torch import nn
-from data_splitting import create_vit_b16_dataloaders
-from models import RA_ViT, linear_combiner, weighted_logit_combiner
-from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from src.data_preprocessing.data_splitting import create_vit_b16_dataloaders
+from src.primary_model.models import RA_ViT, linear_combiner, weighted_logit_combiner
 
 
 
@@ -205,7 +212,7 @@ def calculate_epoch_metrics_weighted_combiner(
     }
 
 def generate_testing_log(bs, lr, epoch, optimizer, loss, history, for_combiner=False):
-    path = Path("testing_logs/logs_by_version.txt")
+    path = Path(__file__).resolve().parents[2] / "testing_logs" / "logs_by_version.txt"
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() == False:
         with path.open("w") as gen_file:
@@ -269,7 +276,7 @@ def train_classifier(
     num_workers=0,
     seed=42,
     device=None,
-    checkpoint_path="checkpoints/ra_vit_classifier.pt",
+    checkpoint_path=Path(__file__).resolve().parents[2] / "checkpoints" / "ra_vit_classifier.pt",
 ):
     device = device or get_device()
     dataloader_kwargs = {
@@ -359,7 +366,7 @@ def train_linear_combiner(
     num_workers=0,
     seed=42,
     device=None,
-    checkpoint_path="checkpoints/linear_combiner.pt",
+    checkpoint_path=Path(__file__).resolve().parents[2] / "checkpoints" / "linear_combiner.pt",
 ):
     device = device or get_device()
     dataloader_kwargs = {
@@ -451,7 +458,7 @@ def train_weighted_combiner(
     num_workers=0,
     seed=42,
     device=None,
-    checkpoint_path="checkpoints/weighted_combiner.pt",
+    checkpoint_path=Path(__file__).resolve().parents[2] / "checkpoints" / "weighted_combiner.pt",
 ):
     device = device or get_device()
     dataloader_kwargs = {
@@ -534,4 +541,12 @@ def train_weighted_combiner(
 
 if __name__ == "__main__":
     classifier_model = RA_ViT(num_classes=200, freeze_backbones=True)
-    train_classifier(epochs=2, model=classifier_model, learning_rate=0.005, batch_size=128, checkpoint_path="checkpoints/ra_vit_classifier_preprocessed_nblur_ngauss_10e_comb0.5_lr0.005bs128.pt")
+    train_classifier(
+        epochs=2,
+        model=classifier_model,
+        learning_rate=0.005,
+        batch_size=128,
+        checkpoint_path=Path(__file__).resolve().parents[2]
+        / "checkpoints"
+        / "ra_vit_classifier_preprocessed_nblur_ngauss_10e_comb0.5_lr0.005bs128.pt",
+    )

@@ -1,13 +1,16 @@
+import sys
 from pathlib import Path
 
 import torch
 
-from models import RA_ViT
-from train import get_device, train_linear_combiner, train_weighted_combiner
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from src.primary_model.models import RA_ViT
+from src.primary_model.train import get_device, train_linear_combiner, train_weighted_combiner
 
 
-PROJECT_DIR = Path(__file__).resolve().parent
-REPO_ROOT = PROJECT_DIR.parent
 RA_VIT_CHECKPOINT_PATH = REPO_ROOT / "checkpoints" / "ra_vit_classifier.pt"
 COMBINER_CHECKPOINT_PATH = REPO_ROOT / "checkpoints" / "linear_combiner.pt"
 
@@ -26,5 +29,14 @@ if __name__ == "__main__":
 
     # testing done on a pretrained classifier model (primary model)
     device = get_device()
-    ra_vit_model = load_ra_vit_model(checkpoint_path="checkpoints/ra_vit_classifier_preprocessed_10e_comb0.5.pt", device=device)
-    train_weighted_combiner(classifier_model=ra_vit_model, checkpoint_path="checkpoints/weighted_combiner_lr0.001_e10", epochs=10)
+    ra_vit_model = load_ra_vit_model(
+        checkpoint_path=REPO_ROOT
+        / "checkpoints"
+        / "ra_vit_classifier_preprocessed_10e_comb0.5.pt",
+        device=device,
+    )
+    train_weighted_combiner(
+        classifier_model=ra_vit_model,
+        checkpoint_path=REPO_ROOT / "checkpoints" / "weighted_combiner_lr0.001_e10",
+        epochs=10,
+    )

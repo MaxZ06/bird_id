@@ -8,8 +8,8 @@ from torchvision import datasets, transforms
 from torchvision.models import ViT_B_16_Weights
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-CROPPED_DATA_ROOT = PROJECT_ROOT / "CUB_200_2011_cropped_square"
+SRC_ROOT = Path(__file__).resolve().parents[1]
+CROPPED_DATA_ROOT = SRC_ROOT / "CUB_200_2011_cropped_square"
 VIT_B16_IMAGE_SIZE = 224
 VIT_B16_WEIGHTS = ViT_B_16_Weights.DEFAULT
 VIT_B16_WEIGHT_TRANSFORMS = VIT_B16_WEIGHTS.transforms()

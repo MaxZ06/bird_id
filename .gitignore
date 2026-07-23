@@ -1,27 +1,23 @@
 # Datasets and generated image folders
 CUB_200_2011/
-CUB_200_2011_cropped_square/
 CUB_200_2011.tgz
-project/CUB_200_2011/
-project/CUB_200_2011_cropped_square/
+src/CUB_200_2011_cropped_square/
 
 # Model checkpoints and trained weights
 *.pt
 *.pth
 *.ckpt
-fc_checkpoints/
-project/fc_checkpoints/
-ViT_RA_model_checkpts/
-project/ViT_RA_model_checkpts/
-ra_vit_last_epoch.pt
-project/ra_vit_last_epoch.pt
+
 
 # Python and notebook caches
 __pycache__/
 *.py[cod]
 .ipynb_checkpoints/
-project/__pycache__/
-project/.ipynb_checkpoints/
+src/__pycache__/
+src/baseline_model/__pycache__/
+src/data_preprocessing/__pycache__/
+src/model_examination/__pycache__/
+src/primary_model/__pycache__/
 
 # Notebooks and course/report artifacts
 *.ipynb
@@ -33,5 +29,17 @@ Thumbs.db
 .vscode/
 .idea/
 
-# ignore init attempt
-project/init_attempt/
+# ignore init attempt and testing log and checkpoints
+checkpoints/
+testing_logs/
+.gitignore
+produced_visuals/
+project_documents/
+
+# ignore all the training curves etc
+*.png
+*.txt
+
+
+# ignore readme temporarily
+README.md

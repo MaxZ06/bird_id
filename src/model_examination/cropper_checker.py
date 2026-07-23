@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -5,17 +6,20 @@ import torch
 from PIL import Image
 from torchvision.models import ViT_B_16_Weights
 
-from train import get_device
-from training_ground import load_ra_vit_model
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from src.primary_model.train import get_device
+from src.primary_model.training_ground import load_ra_vit_model
 
 
-PROJECT_DIR = Path(__file__).resolve().parent
-REPO_ROOT = PROJECT_DIR.parent
+SRC_ROOT = REPO_ROOT / "src"
 DEFAULT_CHECKPOINT_PATH = (
     REPO_ROOT / "checkpoints" / "ra_vit_classifier_preprocessed_10e_comb0.5.pt"
 )
 DEFAULT_IMAGE_PATH = (
-    PROJECT_DIR
+    SRC_ROOT
     / "CUB_200_2011_cropped_square"
     / "058.Pigeon_Guillemot"
     / "Pigeon_Guillemot_0026_40126.jpg"

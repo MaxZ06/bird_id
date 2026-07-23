@@ -8,10 +8,12 @@ from PIL import Image
 
 # Clean data before train/val/test splitting by removing cropped images that are
 # too small to preserve useful fine-grained details.
-PROJECT_ROOT = Path(__file__).resolve().parent
-DATA_ROOT = PROJECT_ROOT / "CUB_200_2011_cropped_square"
-BLUR_DISTRIBUTION_PLOT = PROJECT_ROOT / "data_set_distributions" / "blur_distribution.png"
-BLUR_SAMPLE_PLOT = PROJECT_ROOT / "data_set_distributions" / "blur_sample_images.png"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SRC_ROOT = REPO_ROOT / "src"
+DATA_ROOT = SRC_ROOT / "CUB_200_2011_cropped_square"
+VISUALS_ROOT = REPO_ROOT / "produced_visuals" / "data_set_distributions"
+BLUR_DISTRIBUTION_PLOT = VISUALS_ROOT / "blur_distribution.png"
+BLUR_SAMPLE_PLOT = VISUALS_ROOT / "blur_sample_images.png"
 MIN_WIDTH = 112
 MIN_HEIGHT = 112
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
@@ -310,4 +312,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

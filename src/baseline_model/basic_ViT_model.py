@@ -1,3 +1,4 @@
+import sys
 import time
 from pathlib import Path
 
@@ -5,7 +6,11 @@ import torch
 from torch import nn
 from torchvision.models import ViT_B_16_Weights, vit_b_16
 
-from project.data_splitting import create_vit_b16_dataloaders
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from src.data_preprocessing.data_splitting import create_vit_b16_dataloaders
 
 
 NUM_BIRD_CLASSES = 200
@@ -129,7 +134,7 @@ def train_simple_vit_b16(
     num_workers=0,
     seed=42,
     device=None,
-    checkpoint_path="checkpoints/simple_vit_b16.pt",
+    checkpoint_path=Path(__file__).resolve().parents[2] / "checkpoints" / "simple_vit_b16.pt",
 ):
     device = device or get_device()
     dataloader_kwargs = {
@@ -201,4 +206,9 @@ def train_simple_vit_b16(
 
 
 if __name__ == "__main__":
-    train_simple_vit_b16(epochs=10, checkpoint_path="checkpoints/simple_vit_b16_e10.pt")
+    train_simple_vit_b16(
+        epochs=10,
+        checkpoint_path=Path(__file__).resolve().parents[2]
+        / "checkpoints"
+        / "simple_vit_b16_e10.pt",
+    )
