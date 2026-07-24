@@ -212,7 +212,7 @@ def calculate_epoch_metrics_weighted_combiner(
     }
 
 def generate_testing_log(bs, lr, epoch, optimizer, loss, history, for_combiner=False):
-    path = Path(__file__).resolve().parents[2] / "testing_logs" / "logs_by_version.txt"
+    path = Path(__file__).resolve().parents[2] / "testing_logs" / "final_stage_logs.txt"
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() == False:
         with path.open("w") as gen_file:
@@ -228,7 +228,8 @@ def generate_testing_log(bs, lr, epoch, optimizer, loss, history, for_combiner=F
         with path.open("a") as w_file:
             w_file.write(f"version {last_ver + 1}:\n")
             w_file.write(f"RA_ViT with bs = {bs}, lr = {lr}, num trained epoch = {epoch}, optimizer = {optimizer}, loss function = {loss}\n")
-            w_file.write("with dropout = 0.3, batch normalization applied\n\n")
+            w_file.write(f"crop size = 7, backbone frozen, fc layer in classifiers = 786 -> 512 -> 200\n")
+            w_file.write("with dropout = 0.1, batch normalization applied\n\n")
             
             for e in range(epoch):
                 train_metrics = history[e]['train']
@@ -332,10 +333,10 @@ def train_classifier(
             f"train loss: {train_metrics['loss']:.4f}, "
             f"train global acc: {train_metrics['global_accuracy']:.4f}, "
             f"train local acc: {train_metrics['local_accuracy']:.4f}, "
-            f"train summed acc: {train_metrics['summed_accuracy']:.4f}, "
             f"val loss: {val_metrics['loss']:.4f}, "
             f"val global acc: {val_metrics['global_accuracy']:.4f}, "
             f"val local acc: {val_metrics['local_accuracy']:.4f}, "
+            f"train summed acc: {train_metrics['summed_accuracy']:.4f}, "
             f"val summed acc: {val_metrics['summed_accuracy']:.4f} "
         )
 
@@ -542,11 +543,12 @@ def train_weighted_combiner(
 if __name__ == "__main__":
     classifier_model = RA_ViT(num_classes=200, freeze_backbones=True)
     train_classifier(
-        epochs=2,
+        epochs=10,
         model=classifier_model,
-        learning_rate=0.005,
-        batch_size=128,
+        learning_rate=0.001,
+        batch_size=32,
         checkpoint_path=Path(__file__).resolve().parents[2]
         / "checkpoints"
-        / "ra_vit_classifier_preprocessed_nblur_ngauss_10e_comb0.5_lr0.005bs128.pt",
+        / "final_stage"
+        / "RA_ViT_final_ver1",
     )

@@ -1,5 +1,3 @@
-import math
-
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -91,38 +89,48 @@ def attention_crop(
     if height != width:
         raise ValueError("RA_ViT expects square image tensors.")
 
-    patch_size = height // attention_maps.shape[-1]
-    half_crop = crop_size // 2
-    padded_images = F.pad(images, (half_crop, half_crop, half_crop, half_crop))
+    attention_grid_size = attention_maps.shape[-1]
+    if attention_maps.shape[-2] != attention_grid_size:
+        raise ValueError("RA_ViT expects square attention maps.")
+    if height % attention_grid_size != 0:
+        raise ValueError("Image size must be divisible by the attention grid size.")
+
+    patch_size = height // attention_grid_size
+    if crop_size % patch_size != 0:
+        raise ValueError("Crop size must be a whole number of attention patches.")
+
+    crop_patches = crop_size // patch_size
+    if crop_patches > attention_grid_size:
+        raise ValueError("Crop size cannot exceed the attention map size.")
+
+    window_kernel = torch.ones(
+        1,
+        1,
+        crop_patches,
+        crop_patches,
+        device=attention_maps.device,
+        dtype=attention_maps.dtype,
+    )
     local_crops = []
 
     for image_index in range(batch_size):
         attention_map = attention_maps[image_index]
         window_scores = F.conv2d(
             attention_map.unsqueeze(0).unsqueeze(0),
-            torch.ones(
-                1,
-                1,
-                3,
-                3,
-                device=attention_map.device,
-                dtype=attention_map.dtype,
-            ),
+            window_kernel,
         ).squeeze(0).squeeze(0)
         flat_index = window_scores.argmax().item()
         window_top = flat_index // window_scores.shape[-1]
         window_left = flat_index % window_scores.shape[-1]
-        patch_row = window_top + 1
-        patch_col = window_left + 1
 
-        center_y = math.floor((patch_row + 0.5) * patch_size)
-        center_x = math.floor((patch_col + 0.5) * patch_size)
+        crop_top = window_top * patch_size
+        crop_left = window_left * patch_size
 
-        crop = padded_images[
+        crop = images[
             image_index:image_index + 1,
             :,
-            center_y:center_y + crop_size,
-            center_x:center_x + crop_size,
+            crop_top:crop_top + crop_size,
+            crop_left:crop_left + crop_size,
         ]
         local_crops.append(crop)
 
@@ -167,7 +175,7 @@ class RA_ViT(nn.Module):
         self,
         num_classes=NUM_BIRD_CLASSES,
         fc1_dim=512,
-        dropout=0.3,
+        dropout=0.1,
         freeze_backbones=True,
         attention_layer_index=-1,
         local_crop_size=LOCAL_CROP_SIZE,
@@ -214,9 +222,6 @@ class RA_ViT(nn.Module):
 
         local_features = self.local_vit(local_images)
         local_logits = self.local_classifier(local_features)
-
-        
-#        total_logits = global_logits + local_logits
 
         if return_attention:
             return global_logits, local_logits, local_images
