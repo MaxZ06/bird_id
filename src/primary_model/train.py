@@ -30,18 +30,35 @@ def set_feedforward_trainable(model):
         parameter.requires_grad = True
 
 
-def get_optimizer(optimizer, parameters, learning_rate):
+def get_optimizer(optimizer, parameters, learning_rate, weight_decay=0.0):
     if isinstance(optimizer, str):
         optimizer_name = optimizer.lower()
         if optimizer_name == "adam":
-            return torch.optim.Adam(parameters, lr=learning_rate)
+            return torch.optim.Adam(
+                parameters,
+                lr=learning_rate,
+                weight_decay=weight_decay,
+            )
         if optimizer_name == "sgd":
-            return torch.optim.SGD(parameters, lr=learning_rate, momentum=0.9)
+            return torch.optim.SGD(
+                parameters,
+                lr=learning_rate,
+                momentum=0.9,
+                weight_decay=weight_decay,
+            )
         if optimizer_name == "adamw":
-            return torch.optim.AdamW(parameters, lr=learning_rate)
+            return torch.optim.AdamW(
+                parameters,
+                lr=learning_rate,
+                weight_decay=weight_decay,
+            )
         raise ValueError(f"Unsupported optimizer: {optimizer}")
 
-    return optimizer(parameters, lr=learning_rate)
+    return optimizer(
+        parameters,
+        lr=learning_rate,
+        weight_decay=weight_decay,
+    )
 
 
 def get_loss(loss):
@@ -211,7 +228,17 @@ def calculate_epoch_metrics_weighted_combiner(
         "top_3_acc": total_top_3_correct / total_examples,
     }
 
-def generate_testing_log(bs, lr, epoch, optimizer, loss, history, for_combiner=False):
+def generate_testing_log(
+    bs,
+    lr,
+    epoch,
+    optimizer,
+    loss,
+    history,
+    for_combiner=False,
+    dropout=None,
+    weight_decay=None,
+):
     path = Path(__file__).resolve().parents[2] / "testing_logs" / "final_stage_logs.txt"
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() == False:
@@ -229,7 +256,10 @@ def generate_testing_log(bs, lr, epoch, optimizer, loss, history, for_combiner=F
             w_file.write(f"version {last_ver + 1}:\n")
             w_file.write(f"RA_ViT with bs = {bs}, lr = {lr}, num trained epoch = {epoch}, optimizer = {optimizer}, loss function = {loss}\n")
             w_file.write(f"crop size = 7, backbone frozen, fc layer in classifiers = 786 -> 512 -> 200\n")
-            w_file.write("with dropout = 0.1, batch normalization applied\n\n")
+            w_file.write(
+                f"with dropout = {dropout}, weight decay = {weight_decay}, "
+                "batch normalization applied\n\n"
+            )
             
             for e in range(epoch):
                 train_metrics = history[e]['train']
@@ -241,13 +271,18 @@ def generate_testing_log(bs, lr, epoch, optimizer, loss, history, for_combiner=F
                 f"train local acc: {train_metrics['local_accuracy']:.4f}, "
                 f"val loss: {val_metrics['loss']:.4f}, "
                 f"val global acc: {val_metrics['global_accuracy']:.4f}, "
-                f"val local acc: {val_metrics['local_accuracy']:.4f}\n"
+                f"val local acc: {val_metrics['local_accuracy']:.4f}, "
+                f"train summed logit acc: {train_metrics['summed_accuracy']:.4f}, "
+                f"val summed logit acc: {val_metrics['summed_accuracy']:.4f}\n"
             )
     
 # will be called right after a generate test log for classifier
     if for_combiner == True:
         with path.open("a") as append_file:
             append_file.write("combiner statistic:\n")
+            append_file.write(
+                f"dropout = {dropout}, weight decay = {weight_decay}\n"
+            )
             for e in range(epoch):
                 train_metrics = history[e]['train']
                 val_metrics = history[e]['val']
@@ -272,6 +307,8 @@ def train_classifier(
     epochs=5,
     optimizer="adam",
     loss="ce",
+    dropout=0.3,
+    weight_decay=0.0,
     model=None,
     data_root=None,
     num_workers=0,
@@ -292,7 +329,21 @@ def train_classifier(
         **dataloader_kwargs,
     )
 
-    model = model or RA_ViT(num_classes=len(class_names), freeze_backbones=True)
+    if not 0.0 <= dropout < 1.0:
+        raise ValueError("dropout must be in the range [0.0, 1.0).")
+    if weight_decay < 0.0:
+        raise ValueError("weight_decay must be non-negative.")
+
+    model = model or RA_ViT(
+        num_classes=len(class_names),
+        dropout=dropout,
+        freeze_backbones=True,
+    )
+    for classifier in (model.global_classifier, model.local_classifier):
+        for module in classifier.modules():
+            if isinstance(module, nn.Dropout):
+                module.p = dropout
+
     model.to(device)
     set_feedforward_trainable(model)
 
@@ -301,13 +352,21 @@ def train_classifier(
     ]
     optimizer_name = optimizer
     loss_name = loss
-    optimizer = get_optimizer(optimizer, trainable_parameters, learning_rate)
+    optimizer = get_optimizer(
+        optimizer,
+        trainable_parameters,
+        learning_rate,
+        weight_decay=weight_decay,
+    )
     criterion = get_loss(loss)
 
     history = []
+    best_val_accuracy = float("-inf")
+    best_checkpoint_path = None
     start_time = time.time()
 
     for epoch in range(epochs):
+        current_epoch = epoch + 1
         train_metrics = calculate_epoch_metrics_classifier(
             model,
             train_loader,
@@ -323,13 +382,20 @@ def train_classifier(
         )
 
         history.append({
-            "epoch": epoch + 1,
+            "epoch": current_epoch,
             "train": train_metrics,
             "val": val_metrics,
         })
 
+        if val_metrics["summed_accuracy"] > best_val_accuracy:
+            best_val_accuracy = val_metrics["summed_accuracy"]
+            best_checkpoint_path = save_checkpoint(
+                model,
+                f"{checkpoint_path}_e{current_epoch}",
+            )
+
         print(
-            f"Epoch {epoch + 1}/{epochs} | "
+            f"Epoch {current_epoch}/{epochs} | "
             f"train loss: {train_metrics['loss']:.4f}, "
             f"train global acc: {train_metrics['global_accuracy']:.4f}, "
             f"train local acc: {train_metrics['local_accuracy']:.4f}, "
@@ -341,9 +407,16 @@ def train_classifier(
         )
 
     elapsed_seconds = time.time() - start_time
-    generate_testing_log(bs=batch_size, lr=learning_rate, epoch=epochs,
-                          optimizer=optimizer_name, loss=loss_name, history=history)
-    checkpoint_path = save_checkpoint(model, checkpoint_path)
+    generate_testing_log(
+        bs=batch_size,
+        lr=learning_rate,
+        epoch=epochs,
+        optimizer=optimizer_name,
+        loss=loss_name,
+        history=history,
+        dropout=dropout,
+        weight_decay=weight_decay,
+    )
 
     return {
         "model": model,
@@ -351,7 +424,7 @@ def train_classifier(
         "test_loader": test_loader,
         "class_names": class_names,
         "elapsed_seconds": elapsed_seconds,
-        "checkpoint_path": checkpoint_path,
+        "checkpoint_path": best_checkpoint_path,
     }
 
 
@@ -362,6 +435,8 @@ def train_linear_combiner(
     epochs=5,
     optimizer="adam",
     criterion="ce",
+    dropout=0.0,
+    weight_decay=0.0,
     combiner=None,
     data_root=None,
     num_workers=0,
@@ -387,19 +462,34 @@ def train_linear_combiner(
     for parameter in classifier_model.parameters():
         parameter.requires_grad = False
 
+    if not 0.0 <= dropout < 1.0:
+        raise ValueError("dropout must be in the range [0.0, 1.0).")
+    if weight_decay < 0.0:
+        raise ValueError("weight_decay must be non-negative.")
+
     combiner = combiner or linear_combiner(
         summed_logits=2 * len(class_names),
         out_logits=len(class_names),
+        dropout=dropout,
     )
+    combiner.dropout.p = dropout
     combiner.to(device)
 
-    optimizer = get_optimizer(optimizer, combiner.parameters(), learning_rate)
+    optimizer = get_optimizer(
+        optimizer,
+        combiner.parameters(),
+        learning_rate,
+        weight_decay=weight_decay,
+    )
     criterion = get_loss(criterion)
 
     history = []
+    best_val_accuracy = float("-inf")
+    best_checkpoint_path = None
     start_time = time.time()
 
     for epoch in range(epochs):
+        current_epoch = epoch + 1
         train_metrics = calculate_epoch_metrics_combiner(
             classifier_model,
             combiner,
@@ -417,13 +507,20 @@ def train_linear_combiner(
         )
 
         history.append({
-            "epoch": epoch + 1,
+            "epoch": current_epoch,
             "train": train_metrics,
             "val": val_metrics,
         })
 
+        if val_metrics["accuracy"] > best_val_accuracy:
+            best_val_accuracy = val_metrics["accuracy"]
+            best_checkpoint_path = save_checkpoint(
+                combiner,
+                f"{checkpoint_path}_e{current_epoch}",
+            )
+
         print(
-            f"Epoch {epoch + 1}/{epochs} | "
+            f"Epoch {current_epoch}/{epochs} | "
             f"train loss: {train_metrics['loss']:.4f}, "
             f"train acc: {train_metrics['accuracy']:.4f}, "
             f"train top 3 acc: {train_metrics['top_3_acc']:.4f}, "
@@ -431,10 +528,19 @@ def train_linear_combiner(
             f"val acc: {val_metrics['accuracy']:.4f}, "
             f"val top 3 acc: {val_metrics['top_3_acc']:.4f}"
         )
-    generate_testing_log(bs=batch_size, lr=learning_rate, epoch=epochs,
-                          optimizer="adam", loss="ce", history=history, for_combiner=True)
+    generate_testing_log(
+        bs=batch_size,
+        lr=learning_rate,
+        epoch=epochs,
+        optimizer="adam",
+        loss="ce",
+        history=history,
+        for_combiner=True,
+        dropout=dropout,
+        weight_decay=weight_decay,
+    )
     elapsed_seconds = time.time() - start_time
-    checkpoint_path = save_checkpoint(combiner, checkpoint_path)
+    final_checkpoint_path = save_checkpoint(combiner, checkpoint_path)
 
     return {
         "model": classifier_model,
@@ -443,7 +549,8 @@ def train_linear_combiner(
         "test_loader": test_loader,
         "class_names": class_names,
         "elapsed_seconds": elapsed_seconds,
-        "checkpoint_path": checkpoint_path,
+        "checkpoint_path": best_checkpoint_path,
+        "final_checkpoint_path": final_checkpoint_path,
     }
 
 
@@ -547,8 +654,10 @@ if __name__ == "__main__":
         model=classifier_model,
         learning_rate=0.001,
         batch_size=32,
+        dropout=0.3,
+        weight_decay=0,
         checkpoint_path=Path(__file__).resolve().parents[2]
         / "checkpoints"
         / "final_stage"
-        / "RA_ViT_final_ver1",
+        / "RA_ViT_final_ver2",
     )

@@ -7,7 +7,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.primary_model.models import RA_ViT
+from src.primary_model.models import RA_ViT, linear_combiner
 from src.primary_model.train import get_device, train_linear_combiner, train_weighted_combiner, train_classifier
 
 
@@ -25,6 +25,26 @@ def load_ra_vit_model(checkpoint_path=RA_VIT_CHECKPOINT_PATH, device=None):
     return model
 
 
+def load_linear_combiner_model(
+    checkpoint_path=COMBINER_CHECKPOINT_PATH,
+    summed_logits=400,
+    out_logits=200,
+    dropout=0.0,
+    device=None,
+):
+    device = device or get_device()
+    model = linear_combiner(
+        summed_logits=summed_logits,
+        out_logits=out_logits,
+        dropout=dropout,
+    )
+    state_dict = torch.load(checkpoint_path, map_location=device, weights_only=True)
+    model.load_state_dict(state_dict)
+    model.to(device)
+    model.eval()
+    return model
+
+
 if __name__ == "__main__":
 
     # testing done on a pretrained classifier model (primary model)
@@ -33,31 +53,47 @@ if __name__ == "__main__":
         checkpoint_path=REPO_ROOT
         / "checkpoints"
         / "final_stage"
-        / "RA_ViT_final_ver1_e20",
+        / "RA_ViT_final_ver2_e32",
+        device=device,
+    )
+
+    loaded_linear_combiner = load_linear_combiner_model(
+        checkpoint_path=(
+            REPO_ROOT
+            / "checkpoints"
+            / "final_stage"
+            / "linear_combiner_ver3_e8"
+        ),
+        dropout=0.3,
         device=device,
     )
 
     linear_results = train_linear_combiner(
         classifier_model=ra_vit_model,
+        combiner=loaded_linear_combiner,
         batch_size=32,
         learning_rate=0.01,
         epochs=10,
-        optimizer="adam",
+        optimizer="adamw",
         criterion="ce",
+        dropout=0.3,
+        weight_decay=1e-4,
         device=device,
         checkpoint_path=(
             REPO_ROOT
             / "checkpoints"
             / "final_stage"
-            / "linear_combiner_ver1.pt"
+            / "linear_combiner_ver3"
         ),
     )
 
+
+"""
     weighted_results = train_weighted_combiner(
         classifier_model=ra_vit_model,
         batch_size=32,
         learning_rate=0.005,
-        epochs=10,
+        epochs=2,
         optimizer="adam",
         criterion="ce",
         device=device,
@@ -65,20 +101,21 @@ if __name__ == "__main__":
             REPO_ROOT
             / "checkpoints"
             / "final_stage"
-            / "weighted_combiner_ver1.pt"
+            / "weighted_combiner_ver2.pt"
         ),
     )
-
-
-"""   
+"""
+"""
     train_classifier(
         epochs=10,
         model=ra_vit_model,
-        learning_rate=0.001,
+        learning_rate=0.0005,
         batch_size=32,
+        dropout=0.3,
+        weight_decay=1e-4,
         checkpoint_path=Path(__file__).resolve().parents[2]
         / "checkpoints"
         / "final_stage"
-        / "RA_ViT_final_ver1_e20",
+        / "RA_ViT_final_ver2",
     )
 """
