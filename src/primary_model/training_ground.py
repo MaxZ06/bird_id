@@ -28,6 +28,8 @@ def load_ra_vit_model(checkpoint_path=RA_VIT_CHECKPOINT_PATH, device=None):
 def load_linear_combiner_model(
     checkpoint_path=COMBINER_CHECKPOINT_PATH,
     summed_logits=400,
+    hidden_layer_1=320,
+    hidden_layer_2=256,
     out_logits=200,
     dropout=0.0,
     device=None,
@@ -35,6 +37,8 @@ def load_linear_combiner_model(
     device = device or get_device()
     model = linear_combiner(
         summed_logits=summed_logits,
+        hidden_layer_1=hidden_layer_1,
+        hidden_layer_2=hidden_layer_2,
         out_logits=out_logits,
         dropout=dropout,
     )
@@ -62,7 +66,7 @@ if __name__ == "__main__":
             REPO_ROOT
             / "checkpoints"
             / "final_stage"
-            / "linear_combiner_ver3_e8"
+            / "linear_combiner_ver2.21"
         ),
         dropout=0.3,
         device=device,
@@ -70,9 +74,9 @@ if __name__ == "__main__":
 
     linear_results = train_linear_combiner(
         classifier_model=ra_vit_model,
-        combiner=loaded_linear_combiner,
         batch_size=32,
-        learning_rate=0.01,
+        combiner=loaded_linear_combiner,
+        learning_rate=0.001,
         epochs=10,
         optimizer="adamw",
         criterion="ce",
@@ -83,7 +87,7 @@ if __name__ == "__main__":
             REPO_ROOT
             / "checkpoints"
             / "final_stage"
-            / "linear_combiner_ver3"
+            / "linear_combiner_ver2.21_e10+"
         ),
     )
 
@@ -104,8 +108,7 @@ if __name__ == "__main__":
             / "weighted_combiner_ver2.pt"
         ),
     )
-"""
-"""
+
     train_classifier(
         epochs=10,
         model=ra_vit_model,
@@ -119,3 +122,5 @@ if __name__ == "__main__":
         / "RA_ViT_final_ver2",
     )
 """
+
+

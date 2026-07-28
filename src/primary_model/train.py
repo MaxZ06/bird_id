@@ -472,7 +472,9 @@ def train_linear_combiner(
         out_logits=len(class_names),
         dropout=dropout,
     )
-    combiner.dropout.p = dropout
+    for module in combiner.modules():
+        if isinstance(module, nn.Dropout):
+            module.p = dropout
     combiner.to(device)
 
     optimizer = get_optimizer(

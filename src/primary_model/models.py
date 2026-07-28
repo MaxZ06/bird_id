@@ -155,7 +155,33 @@ class weighted_logit_combiner(nn.Module):
         total_logits = (1 - w1) * global_logits + w1 * local_logits
         return total_logits
 
+class linear_combiner(nn.Module):
+    def __init__(
+        self,
+        summed_logits=400,
+        hidden_layer_1=320,
+        hidden_layer_2=256,
+        out_logits=200,
+        dropout=0.0,
+    ):
+        super().__init__()
+        self.name = "linearCombiner"
+        self.layers = nn.Sequential(
+            nn.Linear(summed_logits, hidden_layer_1),
+            nn.BatchNorm1d(hidden_layer_1),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_layer_1, hidden_layer_2),
+            nn.BatchNorm1d(hidden_layer_2),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_layer_2, out_logits),
+        )
 
+    def forward(self, logits):
+        return self.layers(logits)
+
+"""
 class linear_combiner(nn.Module):
     def __init__(
         self,
@@ -170,7 +196,7 @@ class linear_combiner(nn.Module):
 
     def forward(self, logits):
         return self.output_layer(self.dropout(logits))
-
+"""
 """
 class linear_combiner(nn.Module):
     def __init__(
@@ -193,8 +219,8 @@ class linear_combiner(nn.Module):
 
     def forward(self, logits):
         return self.layers(logits)
-
 """
+
 
 class RA_ViT(nn.Module):
     def __init__(
