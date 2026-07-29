@@ -8,7 +8,13 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.primary_model.models import RA_ViT, linear_combiner
-from src.primary_model.train import get_device, train_linear_combiner, train_weighted_combiner, train_classifier
+from src.primary_model.train import (
+    fine_tune_model,
+    get_device,
+    train_classifier,
+    train_linear_combiner,
+    train_weighted_combiner,
+)
 
 
 RA_VIT_CHECKPOINT_PATH = REPO_ROOT / "checkpoints" / "ra_vit_classifier.pt"
@@ -51,16 +57,39 @@ def load_linear_combiner_model(
 
 if __name__ == "__main__":
 
-    # testing done on a pretrained classifier model (primary model)
+    # load current best classifier
     device = get_device()
     ra_vit_model = load_ra_vit_model(
         checkpoint_path=REPO_ROOT
         / "checkpoints"
         / "final_stage"
-        / "RA_ViT_final_ver2_e32",
+        / "RA_ViT_fine_tuned_v1_e14",
         device=device,
     )
 
+    fine_tune_results = fine_tune_model(
+    model=ra_vit_model,
+    batch_size=16,
+    epochs=10,
+    num_unfrozen_blocks=2,
+    classifier_learning_rate=5e-5,
+    backbone_learning_rate=5e-6,
+    optimizer="adamw",
+    dropout=0.5,
+    weight_decay=1e-4,
+    device=device,
+    checkpoint_path=(
+        REPO_ROOT
+        / "checkpoints"
+        / "final_stage"
+        / "RA_ViT_fine_tuned_v1_e14+"
+    ),
+)
+
+
+
+# code to train linear combiner    
+"""
     loaded_linear_combiner = load_linear_combiner_model(
         checkpoint_path=(
             REPO_ROOT
@@ -90,6 +119,7 @@ if __name__ == "__main__":
             / "linear_combiner_ver2.21_e10+"
         ),
     )
+"""
 
 
 """
