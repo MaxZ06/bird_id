@@ -52,22 +52,70 @@ def get_trainable_parameters(model):
     return [parameter for parameter in model.parameters() if parameter.requires_grad]
 
 
+def set_resnet50_fine_tuning_trainable(model, num_unfrozen_layers=1):
+    """Train the classifier and the final N ResNet50 residual blocks."""
+    for parameter in model.parameters():
+        parameter.requires_grad = False
+
+    for parameter in model.classifier.parameters():
+        parameter.requires_grad = True
+
+    residual_blocks = [
+        block
+        for stage in (
+            model.backbone.layer1,
+            model.backbone.layer2,
+            model.backbone.layer3,
+            model.backbone.layer4,
+        )
+        for block in stage.children()
+    ]
+    if not 1 <= num_unfrozen_layers <= len(residual_blocks):
+        raise ValueError(
+            "num_unfrozen_layers must be between 1 and "
+            f"{len(residual_blocks)}."
+        )
+
+    for block in residual_blocks[-num_unfrozen_layers:]:
+        for parameter in block.parameters():
+            parameter.requires_grad = True
+
+    return len(residual_blocks)
+
+
 def get_device():
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def get_optimizer(optimizer, parameters, learning_rate):
+def get_optimizer(optimizer, parameters, learning_rate, weight_decay=1e-4):
     if isinstance(optimizer, str):
         optimizer_name = optimizer.lower()
         if optimizer_name == "adam":
-            return torch.optim.Adam(parameters, lr=learning_rate)
+            return torch.optim.Adam(
+                parameters,
+                lr=learning_rate,
+                weight_decay=weight_decay,
+            )
         if optimizer_name == "sgd":
-            return torch.optim.SGD(parameters, lr=learning_rate, momentum=0.9)
+            return torch.optim.SGD(
+                parameters,
+                lr=learning_rate,
+                momentum=0.9,
+                weight_decay=weight_decay,
+            )
         if optimizer_name == "adamw":
-            return torch.optim.AdamW(parameters, lr=learning_rate)
+            return torch.optim.AdamW(
+                parameters,
+                lr=learning_rate,
+                weight_decay=weight_decay,
+            )
         raise ValueError(f"Unsupported optimizer: {optimizer}")
 
-    return optimizer(parameters, lr=learning_rate)
+    return optimizer(
+        parameters,
+        lr=learning_rate,
+        weight_decay=weight_decay,
+    )
 
 
 def get_loss(loss):
@@ -85,6 +133,15 @@ def save_checkpoint(model, checkpoint_path):
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
     torch.save(model.state_dict(), checkpoint_path)
     return checkpoint_path
+
+
+def get_epoch_checkpoint_path(checkpoint_path, epoch):
+    """Add an epoch suffix while preserving the checkpoint file extension."""
+    checkpoint_path = Path(checkpoint_path)
+    suffix = checkpoint_path.suffix or ".pt"
+    return checkpoint_path.with_name(
+        f"{checkpoint_path.stem}_e{epoch}{suffix}"
+    )
 
 
 def calculate_epoch_metrics(model, dataloader, criterion, device, optimizer=None):
@@ -126,10 +183,14 @@ def calculate_epoch_metrics(model, dataloader, criterion, device, optimizer=None
         "top_3_acc": total_top_3_correct / total_examples,
     }
 
-
 def train_simple_resnet50(
     batch_size=32,
     learning_rate=0.001,
+    fine_tune=False,
+    backbone_learning_rate=1e-5,
+    classifier_learning_rate=None,
+    num_unfrozen_layers=1,
+    weight_decay=1e-4,
     epochs=5,
     optimizer="adam",
     loss="ce",
@@ -140,6 +201,9 @@ def train_simple_resnet50(
     device=None,
     checkpoint_path=Path(__file__).resolve().parents[2] / "checkpoints" / "simple_resnet50.pt",
 ):
+    if epochs < 1:
+        raise ValueError("epochs must be at least 1.")
+
     device = device or get_device()
     dataloader_kwargs = {
         "batch_size": batch_size,
@@ -156,14 +220,60 @@ def train_simple_resnet50(
     model = model or SimpleResNet50(num_classes=len(class_names))
     model.to(device)
 
-    trainable_parameters = get_trainable_parameters(model)
-    optimizer = get_optimizer(optimizer, trainable_parameters, learning_rate)
+    if classifier_learning_rate is None:
+        classifier_learning_rate = learning_rate
+    unfrozen_backbone_layers = 0
+    if fine_tune:
+        set_resnet50_fine_tuning_trainable(
+            model,
+            num_unfrozen_layers=num_unfrozen_layers,
+        )
+        unfrozen_backbone_layers = num_unfrozen_layers
+        classifier_parameters = [
+            parameter
+            for parameter in model.classifier.parameters()
+            if parameter.requires_grad
+        ]
+        backbone_parameters = [
+            parameter
+            for parameter in model.backbone.parameters()
+            if parameter.requires_grad
+        ]
+        trainable_parameters = [
+            {
+                "params": backbone_parameters,
+                "lr": backbone_learning_rate,
+            },
+            {
+                "params": classifier_parameters,
+                "lr": classifier_learning_rate,
+            },
+        ]
+        optimizer_learning_rate = classifier_learning_rate
+        print(
+            f"Fine-tuning the last {num_unfrozen_layers} ResNet50 residual "
+            f"block(s) at lr={backbone_learning_rate:g}; classifier "
+            f"lr={classifier_learning_rate:g}."
+        )
+    else:
+        trainable_parameters = get_trainable_parameters(model)
+        optimizer_learning_rate = learning_rate
+
+    optimizer = get_optimizer(
+        optimizer,
+        trainable_parameters,
+        optimizer_learning_rate,
+        weight_decay=weight_decay,
+    )
     criterion = get_loss(loss)
 
     history = []
+    best_val_accuracy = float("-inf")
+    best_checkpoint_path = None
     start_time = time.time()
 
     for epoch in range(epochs):
+        current_epoch = epoch + 1
         train_metrics = calculate_epoch_metrics(
             model,
             train_loader,
@@ -179,13 +289,24 @@ def train_simple_resnet50(
         )
 
         history.append({
-            "epoch": epoch + 1,
+            "epoch": current_epoch,
             "train": train_metrics,
             "val": val_metrics,
         })
 
+        if val_metrics["accuracy"] > best_val_accuracy:
+            best_val_accuracy = val_metrics["accuracy"]
+            best_checkpoint_path = save_checkpoint(
+                model,
+                get_epoch_checkpoint_path(checkpoint_path, current_epoch),
+            )
+            print(
+                f"Saved improved checkpoint to {best_checkpoint_path} "
+                f"(val accuracy: {best_val_accuracy:.4f})"
+            )
+
         print(
-            f"Epoch {epoch + 1}/{epochs} | "
+            f"Epoch {current_epoch}/{epochs} | "
             f"train loss: {train_metrics['loss']:.4f}, "
             f"train acc: {train_metrics['accuracy']:.4f}, "
             f"train top 3 acc: {train_metrics['top_3_acc']:.4f}, "
@@ -194,8 +315,12 @@ def train_simple_resnet50(
             f"val top 3 acc: {val_metrics['top_3_acc']:.4f}"
         )
 
+    final_checkpoint_path = save_checkpoint(
+        model,
+        get_epoch_checkpoint_path(checkpoint_path, epochs),
+    )
+    print(f"Saved final-epoch checkpoint to {final_checkpoint_path}")
     elapsed_seconds = time.time() - start_time
-    checkpoint_path = save_checkpoint(model, checkpoint_path)
 
     return {
         "model": model,
@@ -203,14 +328,16 @@ def train_simple_resnet50(
         "test_loader": test_loader,
         "class_names": class_names,
         "elapsed_seconds": elapsed_seconds,
-        "checkpoint_path": checkpoint_path,
+        "best_val_accuracy": best_val_accuracy,
+        "fine_tune": fine_tune,
+        "backbone_learning_rate": (
+            backbone_learning_rate if fine_tune else None
+        ),
+        "classifier_learning_rate": (
+            classifier_learning_rate if fine_tune else learning_rate
+        ),
+        "num_unfrozen_layers": unfrozen_backbone_layers,
+        "checkpoint_path": best_checkpoint_path,
+        "final_checkpoint_path": final_checkpoint_path,
     }
 
-
-if __name__ == "__main__":
-    train_simple_resnet50(
-        epochs=10,
-        checkpoint_path=Path(__file__).resolve().parents[2]
-        / "checkpoints"
-        / "simple_resnet50_e10.pt",
-    )

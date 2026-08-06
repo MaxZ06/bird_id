@@ -7,7 +7,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.primary_model.models import RA_ViT, linear_combiner
+from src.primary_model.models import (
+    RA_ViT,
+    linear_combiner,
+    weighted_logit_combiner,
+)
 from src.primary_model.train import (
     fine_tune_model,
     get_device,
@@ -31,11 +35,19 @@ def load_ra_vit_model(checkpoint_path=RA_VIT_CHECKPOINT_PATH, device=None):
     return model
 
 
+def initialize_weighted_combiner(w1, device=None):
+    if not 0.0 < w1 < 1.0:
+        raise ValueError("w1 must be strictly between 0 and 1.")
+
+    device = device or get_device()
+    combiner = weighted_logit_combiner(init_w1=w1)
+    combiner.to(device)
+    return combiner
+
+
 def load_linear_combiner_model(
     checkpoint_path=COMBINER_CHECKPOINT_PATH,
     summed_logits=400,
-    hidden_layer_1=320,
-    hidden_layer_2=256,
     out_logits=200,
     dropout=0.0,
     device=None,
@@ -43,8 +55,6 @@ def load_linear_combiner_model(
     device = device or get_device()
     model = linear_combiner(
         summed_logits=summed_logits,
-        hidden_layer_1=hidden_layer_1,
-        hidden_layer_2=hidden_layer_2,
         out_logits=out_logits,
         dropout=dropout,
     )
@@ -59,33 +69,56 @@ if __name__ == "__main__":
 
     # load current best classifier
     device = get_device()
+
+
     ra_vit_model = load_ra_vit_model(
         checkpoint_path=REPO_ROOT
         / "checkpoints"
         / "final_stage"
-        / "RA_ViT_fine_tuned_v1_e14",
+        / "RA_ViT_fine_tuned_v3_e24",
         device=device,
     )
 
+    weighted_results = train_weighted_combiner(
+        classifier_model=ra_vit_model,
+        batch_size=32,
+        learning_rate=0.005,
+        epochs=2,
+        optimizer="adam",
+        criterion="ce",
+        device=device,
+        checkpoint_path=(
+            REPO_ROOT
+            / "checkpoints"
+            / "final_stage"
+            / "weighted_combiner_ver2.pt"
+        ),
+    )
+
+
+
+
+
+"""
     fine_tune_results = fine_tune_model(
     model=ra_vit_model,
     batch_size=16,
     epochs=10,
-    num_unfrozen_blocks=2,
-    classifier_learning_rate=5e-5,
+    num_unfrozen_blocks=6,
+    classifier_learning_rate=1e-5,
     backbone_learning_rate=5e-6,
     optimizer="adamw",
     dropout=0.5,
-    weight_decay=1e-4,
+    weight_decay=2.5e-4,
     device=device,
     checkpoint_path=(
         REPO_ROOT
         / "checkpoints"
         / "final_stage"
-        / "RA_ViT_fine_tuned_v1_e14+"
-    ),
-)
-
+        / "RA_ViT_fine_tuned_v3_e24+"
+        ),
+    )
+"""
 
 
 # code to train linear combiner    

@@ -154,7 +154,7 @@ class weighted_logit_combiner(nn.Module):
         w1 = torch.sigmoid(self.raw_w1)
         total_logits = (1 - w1) * global_logits + w1 * local_logits
         return total_logits
-
+"""
 class linear_combiner(nn.Module):
     def __init__(
         self,
@@ -180,8 +180,8 @@ class linear_combiner(nn.Module):
 
     def forward(self, logits):
         return self.layers(logits)
-
 """
+
 class linear_combiner(nn.Module):
     def __init__(
         self,
@@ -196,7 +196,7 @@ class linear_combiner(nn.Module):
 
     def forward(self, logits):
         return self.output_layer(self.dropout(logits))
-"""
+
 """
 class linear_combiner(nn.Module):
     def __init__(
@@ -254,7 +254,12 @@ class RA_ViT(nn.Module):
             dropout=dropout,
         )
 
-    def forward(self, images, return_attention=False):
+    def forward(
+        self,
+        images,
+        return_attention=False,
+        return_branch_logits=False,
+    ):
         global_features = self.global_vit(images)
         global_logits = self.global_classifier(global_features)
 
@@ -278,4 +283,8 @@ class RA_ViT(nn.Module):
         if return_attention:
             return global_logits, local_logits, local_images
 
-        return global_logits, local_logits
+        if self.training or return_branch_logits:
+            return global_logits, local_logits
+
+        final_logits = global_logits + local_logits
+        return torch.softmax(final_logits, dim=1)

@@ -124,12 +124,17 @@ def calculate_epoch_metrics_classifier(model, dataloader, criterion, device, opt
             if is_training:
                 optimizer.zero_grad()
 
-            global_logits, local_logits = model(images)
+            # current loss: separate loss functions
+            global_logits, local_logits = model(
+                images,
+                return_branch_logits=True,
+            )
             total_logits = global_logits + local_logits
             loss = (
                 criterion(global_logits, labels)
                 + criterion(local_logits, labels)
             )
+
 
             if is_training:
                 loss.backward()
@@ -177,7 +182,10 @@ def calculate_epoch_metrics_combiner(
 
             # get global and local outputs from the classifier
             with torch.no_grad():
-                global_logits, local_logits = model(images)
+                global_logits, local_logits = model(
+                    images,
+                    return_branch_logits=True,
+                )
                 combined_logits = torch.cat((global_logits, local_logits), dim=1)
 
             total_logits = combiner(combined_logits)
@@ -229,7 +237,10 @@ def calculate_epoch_metrics_weighted_combiner(
                 optimizer.zero_grad()
 
             with torch.no_grad():
-                global_logits, local_logits = model(images)
+                global_logits, local_logits = model(
+                    images,
+                    return_branch_logits=True,
+                )
 
             total_logits = combiner(global_logits, local_logits)
             loss = criterion(total_logits, labels)
@@ -852,9 +863,10 @@ if __name__ == "__main__":
         learning_rate=0.001,
         batch_size=32,
         dropout=0.3,
-        weight_decay=0,
+        optimizer="adamw",
+        weight_decay=1e-5,
         checkpoint_path=Path(__file__).resolve().parents[2]
         / "checkpoints"
         / "final_stage"
-        / "RA_ViT_final_ver2",
+        / "RA_ViT_final_v4",
     )
