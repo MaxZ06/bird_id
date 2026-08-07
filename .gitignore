@@ -1,45 +1,58 @@
-# Datasets and generated image folders
-CUB_200_2011/
-CUB_200_2011.tgz
-src/CUB_200_2011_cropped_square/
+# Datasets
+/CUB_200_2011/
+/CUB_200_2011.tgz
+/src/CUB_200_2011_cropped_square/
 
-# Model checkpoints and trained weights
+# Model weights and generated training artifacts
+/checkpoints/
+/testing_logs/
+/produced_visuals/
+/runs/
+/wandb/
+/mlruns/
 *.pt
 *.pth
 *.ckpt
+*.onnx
 
-
-# Python and notebook caches
+# Python bytecode and tool caches
 __pycache__/
 *.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Python environments and packaging output
+.venv/
+venv/
+env/
+ENV/
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Jupyter
 .ipynb_checkpoints/
-src/__pycache__/
-src/baseline_model/__pycache__/
-src/data_preprocessing/__pycache__/
-src/model_examination/__pycache__/
-src/primary_model/__pycache__/
 
-# Notebooks and course/report artifacts
-*.ipynb
-latex documents for course/
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.local
 
-# OS/editor clutter
+# IDE and editor settings
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Operating-system files
 .DS_Store
 Thumbs.db
-.vscode/
-.idea/
-
-# ignore init attempt and testing log and checkpoints
-checkpoints/
-testing_logs/
-.gitignore
-produced_visuals/
-project_documents/
-
-# ignore all the training curves etc
-*.png
-*.txt
-
-
-# ignore readme temporarily
-README.md
+Desktop.ini
