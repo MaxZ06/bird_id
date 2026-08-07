@@ -14,17 +14,23 @@ METADATA_PATH = OUTPUT_ROOT / "processed_images.csv"
 
 
 def extract_cub_if_needed(archive_path=ARCHIVE_PATH, data_root=DATA_ROOT):
+    archive_path = Path(archive_path)
+    data_root = Path(data_root)
     if data_root.exists():
         return
     if not archive_path.exists():
-        raise FileNotFoundError(f"Missing {archive_path}. Put CUB_200_2011.tgz in this folder.")
+        raise FileNotFoundError(f"CUB archive does not exist: {archive_path}")
 
     print(f"Extracting {archive_path}...")
+    extraction_root = data_root.parent
+    extraction_root.mkdir(parents=True, exist_ok=True)
     with tarfile.open(archive_path, "r:gz") as tar:
-        try:
-            tar.extractall(path=Path.cwd(), filter="data")
-        except TypeError:
-            tar.extractall(path=Path.cwd())
+        tar.extractall(path=extraction_root, filter="data")
+
+    if not data_root.is_dir():
+        raise RuntimeError(
+            f"Archive extraction did not create the expected directory: {data_root}"
+        )
 
 
 def read_image_paths(data_root=DATA_ROOT):
@@ -107,6 +113,7 @@ def crop_square_around_box(image, bbox):
 
 
 def preprocess_cub_images(data_root=DATA_ROOT, output_root=OUTPUT_ROOT, overwrite=True):
+    data_root = Path(data_root)
     extract_cub_if_needed(data_root=data_root)
     output_root = Path(output_root)
     metadata_path = output_root / "processed_images.csv"
@@ -137,8 +144,8 @@ def preprocess_cub_images(data_root=DATA_ROOT, output_root=OUTPUT_ROOT, overwrit
             "image_id": image_id,
             "class_id": class_id,
             "species": species,
-            "source_path": str(source_path),
-            "processed_path": str(target_path),
+            "source_path": source_path.relative_to(data_root).as_posix(),
+            "processed_path": target_path.relative_to(output_root).as_posix(),
             "bbox_x": bbox[0],
             "bbox_y": bbox[1],
             "bbox_width": bbox[2],
