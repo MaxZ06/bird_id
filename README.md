@@ -258,24 +258,4 @@ optimizer rather than restoring optimizer state.
   dimension.
 - Large datasets and checkpoints should be stored outside Git or published
   separately with clear version information.
-
-## Citation
-
-If this repository is used in research, cite the CUB-200-2011 technical report:
-
-```bibtex
-@techreport{WahCUB2002011,
-  author      = {Catherine Wah and Steve Branson and Peter Welinder and
-                 Pietro Perona and Serge Belongie},
-  title       = {The Caltech-UCSD Birds-200-2011 Dataset},
-  institution = {California Institute of Technology},
-  number      = {CNS-TR-2011-001},
-  year        = {2011}
-}
-```
-
-## License
-
-No software license is currently included. Until a license is added, normal
-copyright restrictions apply to the repository code. The CUB-200-2011 dataset
-has separate usage restrictions described on its official page.
+  
