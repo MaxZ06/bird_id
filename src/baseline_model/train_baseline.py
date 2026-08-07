@@ -6,6 +6,7 @@ import torch
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_CHECKPOINT_PATH = REPO_ROOT / "checkpoints" / "simple_resnet50.pt"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
@@ -187,10 +188,7 @@ def main():
             **common_training_args,
         )
     else:
-        output_checkpoint = (
-            args.output_checkpoint
-            or REPO_ROOT / "checkpoints" / "simple_resnet50_e11+.pt"
-        )
+        output_checkpoint = args.output_checkpoint or DEFAULT_CHECKPOINT_PATH
         model = SimpleResNet50(dropout=args.dropout)
         result = train_simple_resnet50(
             model=model,
