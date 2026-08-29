@@ -12,8 +12,10 @@ VIT_B16_PATCH_GRID = VIT_B16_IMAGE_SIZE // VIT_B16_PATCH_SIZE
 LOCAL_CROP_SIZE = 7 * VIT_B16_PATCH_SIZE
 
 
-def build_pretrained_vit_b16_backbone(freeze_backbone=True):
-    backbone = vit_b_16(weights=ViT_B_16_Weights.DEFAULT)
+def build_pretrained_vit_b16_backbone(
+    freeze_backbone=True, weights=ViT_B_16_Weights.DEFAULT,
+):
+    backbone = vit_b_16(weights=weights)
     backbone.heads = nn.Identity()
 
     if freeze_backbone:
@@ -151,6 +153,7 @@ class RA_ViT(nn.Module):
         freeze_backbones=True,
         attention_layer_index=-1,
         local_crop_size=LOCAL_CROP_SIZE,
+        backbone_weights=ViT_B_16_Weights.DEFAULT,
     ):
         super().__init__()
         self.name = "RA_ViT"
@@ -159,9 +162,11 @@ class RA_ViT(nn.Module):
 
         self.global_vit = build_pretrained_vit_b16_backbone(
             freeze_backbone=freeze_backbones,
+            weights=backbone_weights,
         )
         self.local_vit = build_pretrained_vit_b16_backbone(
             freeze_backbone=freeze_backbones,
+            weights=backbone_weights,
         )
         self.global_classifier = build_fc_classifier(
             num_classes=num_classes,

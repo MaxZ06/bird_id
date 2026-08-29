@@ -1,0 +1,16 @@
+# Tested with Python 3.12.
+#
+# This pins the direct dependencies used by the training, evaluation, data
+# preparation, and PyQt6 desktop GUI code. pip installs their transitive
+# dependencies automatically.
+#
+# The torch packages below use pip's default build. For a CUDA-specific build,
+# install torch and torchvision using the command generated at
+# https://pytorch.org/get-started/locally/ before installing this file.
+
+torch==2.5.1
+torchvision==0.20.1
+Pillow==11.1.0
+numpy==2.0.1
+matplotlib==3.11.0
+PyQt6==6.11.0

@@ -20,6 +20,8 @@ excluded from Git.
 |-- scripts/
 |   |-- prepare_data.py       # Extract, crop, clean, and validate CUB data
 |   `-- train_ra_vit.py       # Train, resume, or fine-tune RA-ViT
+|-- main/
+|   `-- main.py               # PyQt6 desktop inference GUI
 |-- src/
 |   |-- baseline_model/
 |   |   |-- baseline_model_resnet.py
@@ -31,6 +33,7 @@ excluded from Git.
 |   `-- primary_model/
 |       |-- models.py
 |       `-- train.py
+|-- requirements.txt          # Tested direct Python dependencies
 |-- tests/
 |   `-- test_models.py        # Evaluation and interactive prediction utility
 |-- .gitignore
@@ -39,23 +42,111 @@ excluded from Git.
 
 ## Requirements
 
-- Python 3.12 or newer
-- PyTorch
-- torchvision
-- Pillow
-- NumPy
-- Matplotlib
-- Tkinter for the interactive folder picker
+- Python 3.12
+- The packages pinned in `requirements.txt`
+- Tkinter from the Python standard library for the legacy interactive folder
+  picker (not needed by the PyQt6 desktop GUI)
 
-Install a PyTorch and torchvision build appropriate for the machine's CPU or
-CUDA environment, then install the remaining dependencies:
+Create and activate an isolated environment, then install the tested dependency
+versions:
 
 ```bash
-python -m pip install pillow numpy matplotlib
+python -m venv .venv
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
-The repository does not currently provide a pinned dependency file. Record the
-installed package versions when reproducing an experiment.
+For CUDA, install the appropriate PyTorch and torchvision build using the
+command from the official PyTorch selector before installing the remaining
+requirements. Model checkpoints and the CUB dataset are not Python dependencies
+and must be obtained separately as described below.
+
+## Reproduction Workflow
+
+Run these steps from the repository root in order:
+
+1. Create and activate a Python 3.12 virtual environment.
+2. Install the project dependencies before running any project scripts:
+
+   ```bash
+   python -m pip install --upgrade pip
+   python -m pip install -r requirements.txt
+   ```
+
+3. Download `CUB_200_2011.tgz` and place it in the repository root.
+4. Prepare and validate the dataset:
+
+   ```bash
+   python scripts/prepare_data.py
+   ```
+
+5. Train the RA-ViT model, or place a compatible existing checkpoint in the
+   ignored `checkpoints/` directory:
+
+   ```bash
+   python scripts/train_ra_vit.py
+   ```
+
+6. Evaluate a checkpoint or launch the desktop GUI:
+
+   ```bash
+   python -m src.primary_model.evaluate --checkpoint checkpoints/model.pt
+   python main/main.py
+   ```
+
+The following sections explain each workflow step and its available options.
+
+## Desktop GUI
+
+The desktop interface uses PyQt6 from `requirements.txt`:
+
+```bash
+python main/main.py
+```
+
+Choose an RA-ViT checkpoint using **Choose checkpoint**, then select an image
+with **Choose image** or drag a single image onto the preview area. Click
+**Identify bird** to display the three highest combined predictions at the
+bottom. Supported image formats include JPEG, PNG, BMP, WebP, and TIFF.
+Loading and inference run in a background thread so the window stays responsive.
+
+Cropping is optional. Click **Square crop** to start with the largest centered
+square. Drag inside the box to slide it around, or drag any of its four corner
+handles to resize it. **Reset** restores the centered square; **Use full image**
+disables cropping. The box stays square and inside the image, even when the
+window is resized. Crop dimensions and small-crop warnings appear below the
+photo; there is no separate model-input preview.
+
+The crop is taken from the original-resolution, orientation-corrected image in
+memory, then resized for inference. The original file is never edited or saved
+over. Crops smaller than 224 pixels on a side show a warning but can still be
+classified. Changing the crop clears previous predictions; click **Identify
+bird** again to evaluate the new selection. Choosing a new image resets cropping.
+
+The GUI accepts full RA-ViT state dictionaries, either directly or inside a
+`model_state_dict` checkpoint field, including checkpoints without an extension.
+Classifier dimensions are inferred from the weights. ResNet checkpoints are
+not supported by this interface. No pretrained weights are downloaded.
+
+Class names come from checkpoint `class_names` metadata if present, otherwise
+the sorted cropped-dataset folders or `CUB_200_2011/classes.txt`. For another
+class mapping, supply `--classes path/to/classes.txt` with one class name per
+line in the same order as the model's output indices. The GUI uses the existing
+evaluation preprocessing and ranks `softmax(global_logits + local_logits)`.
+These scores are model probabilities, not calibrated certainty.
+
+CUDA is selected when available, otherwise CPU. Use `--device cpu`,
+`--device cuda`, or `--device mps` to override. If training used a different local
+crop size, pass `--crop-size` in pixels (default: 112). Checkpoints containing
+only a state dictionary do not store that setting.
+
+Run the automated checks, including the offscreen GUI tests, with:
+
+```bash
+python -m unittest discover -s tests -p "test_*.py"
+```
 
 ## Dataset
 
@@ -136,6 +227,12 @@ The primary model has two pretrained ViT-B/16 branches:
 - The local branch classifies the crop.
 - Training optimizes both branch losses; inference sums their logits and
   returns softmax probabilities.
+
+![RA-ViT model structure showing the global and local ViT-B/16 branches](demo_docs/model_structure.png)
+
+*RA-ViT structure. The diagram illustrates the two prediction branches and
+attention-guided crop; the implementation combines the branch logits before
+applying softmax.*
 
 Initial training freezes both ViT backbones and trains the classifier heads.
 Fine-tuning can unfreeze the final transformer blocks in both backbones.
@@ -258,4 +355,3 @@ optimizer rather than restoring optimizer state.
   dimension.
 - Large datasets and checkpoints should be stored outside Git or published
   separately with clear version information.
-  
